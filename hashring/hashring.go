@@ -3,7 +3,11 @@ package hashring
 import (
 	"fmt"
 	"sync"
+
+	"github.com/op/go-logging"
 )
+
+var logger = logging.MustGetLogger("hashring")
 
 type HashRing struct {
 	sync.RWMutex
@@ -41,6 +45,7 @@ func (r *HashRing) addServerNoLock(address string) bool {
 	}
 
 	r.addVirtualNodesNoLock(address)
+	logger.Noticef("Server %s added to ring", address)
 	return true
 }
 
@@ -48,7 +53,9 @@ func (r *HashRing) addVirtualNodesNoLock(server string) {
 	r.serverSet[server] = struct{}{}
 	for i := 0; i < r.replicaPoints; i++ {
 		address := fmt.Sprintf("%s%v", server, i)
-		r.tree.Insert(r.hashfunc(address), server)
+		key := r.hashfunc(address)
+		r.tree.Insert(key, server)
+		logger.Debugf("Virtual node %d added for %s", key, server)
 	}
 }
 
@@ -65,6 +72,7 @@ func (r *HashRing) removeServerNoLock(address string) bool {
 	}
 
 	r.removeVirtualNodesNoLock(address)
+	logger.Noticef("Server %s removed from ring", address)
 	return true
 }
 
@@ -72,7 +80,9 @@ func (r *HashRing) removeVirtualNodesNoLock(server string) {
 	delete(r.serverSet, server)
 	for i := 0; i < r.replicaPoints; i++ {
 		address := fmt.Sprintf("%s%v", server, i)
-		r.tree.Delete(r.hashfunc(address))
+		key := r.hashfunc(address)
+		r.tree.Delete(key)
+		logger.Debugf("Virtual node %d removed for %s", key, server)
 	}
 }
 

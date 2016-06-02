@@ -29,8 +29,10 @@ func newStateTransitions(n *Node) *stateTransitions {
 func (s *stateTransitions) ScheduleSuspectToFaulty(change Change) {
 	s.Lock()
 	s.schedule(change, Suspect, s.node.suspectTimeout, func() {
+		logger.Errorf("Suspect timer expired, mark %s faulty", change.Address)
 		s.node.memberlist.MarkFaulty(change.Address, change.Incarnation)
 	})
+	logger.Infof("Suspect timer for %s scheduled", change.Address)
 	s.Unlock()
 }
 

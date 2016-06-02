@@ -8,7 +8,10 @@ import (
 	"time"
 
 	"github.com/hungys/swimring/util"
+	"github.com/op/go-logging"
 )
+
+var logger = logging.MustGetLogger("membership")
 
 var (
 	ErrNodeNotReady = errors.New("node is not ready to handle requests")
@@ -252,6 +255,9 @@ func (n *Node) pingNextMember() {
 	targetReached, _ := sendIndirectPing(n, member.Address, n.pingRequestSize, n.pingRequestTimeout)
 
 	if !targetReached {
+		if member.Status != Suspect {
+			logger.Warningf("Cannot reach %s, mark it suspect", member.Address)
+		}
 		n.memberlist.MarkSuspect(member.Address, member.Incarnation)
 		return
 	}
@@ -261,6 +267,7 @@ func (n *Node) joinCluster() []string {
 	var nodesJoined []string
 	var wg sync.WaitGroup
 
+	logger.Infof("Trying to join the cluster...")
 	for _, target := range n.bootstrapNodes {
 		wg.Add(1)
 
@@ -272,6 +279,7 @@ func (n *Node) joinCluster() []string {
 				return
 			}
 
+			logger.Noticef("Join %s successfully, %d peers found", target, len(res.Membership))
 			n.memberlist.AddJoinList(res.Membership)
 			nodesJoined = append(nodesJoined, target)
 		}(target)

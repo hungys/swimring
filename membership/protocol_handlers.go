@@ -71,6 +71,8 @@ func (p *ProtocolHandlers) PingRequest(req *PingRequest, resp *PingResponse) err
 
 	p.node.memberlist.Update(req.Changes)
 
+	logger.Infof("Handling ping request to %s (from %s)", req.Target, req.Source)
+
 	res, err := sendDirectPing(p.node, req.Target, p.node.pingTimeout)
 	pingOk := err == nil
 
@@ -88,6 +90,8 @@ func (p *ProtocolHandlers) PingRequest(req *PingRequest, resp *PingResponse) err
 }
 
 func (p *ProtocolHandlers) Join(req *JoinRequest, resp *JoinResponse) error {
+	logger.Infof("Handling join request from %s", req.Source)
+
 	resp.Coordinator = p.node.Address()
 	resp.Membership = p.node.disseminator.MembershipAsChanges()
 	resp.Checksum = p.node.memberlist.Checksum()

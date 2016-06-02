@@ -36,13 +36,16 @@ func sendPingWithChanges(node *Node, target string, changes []Change, timeout ti
 			return
 		}
 
-		errCh <- client.Call("Protocol.Ping", req, resp)
+		if client != nil {
+			errCh <- client.Call("Protocol.Ping", req, resp)
+		}
 	}()
 
 	var err error
 	select {
 	case err = <-errCh:
 	case <-time.After(timeout):
+		logger.Warningf("Ping %s timeout", target)
 		err = errors.New("ping timed out")
 	}
 
@@ -82,9 +85,10 @@ func sendPingRequests(node *Node, target string, amount int, timeout time.Durati
 		go func(peer Member) {
 			defer wg.Done()
 
-			res, err := sendPingRequest(node, target, timeout)
+			res, err := sendPingRequest(node, peer.Address, target, timeout)
 			if err != nil {
 				resCh <- err
+				return
 			}
 
 			resCh <- res
@@ -99,7 +103,7 @@ func sendPingRequests(node *Node, target string, amount int, timeout time.Durati
 	return resCh
 }
 
-func sendPingRequest(node *Node, target string, timeout time.Duration) (*PingResponse, error) {
+func sendPingRequest(node *Node, peer string, target string, timeout time.Duration) (*PingResponse, error) {
 	changes, bumpPiggybackCounters := node.disseminator.IssueAsSender()
 	req := &PingRequest{
 		Source:            node.Address(),
@@ -112,14 +116,18 @@ func sendPingRequest(node *Node, target string, timeout time.Duration) (*PingRes
 	errCh := make(chan error, 1)
 	resp := &PingResponse{}
 	go func() {
-		client, err := node.memberlist.MemberClient(target)
+		client, err := node.memberlist.MemberClient(peer)
 		if err != nil {
 			errCh <- err
+			return
 		}
 
-		err = client.Call("Protocol.PingRequest", req, resp)
-		if err != nil {
-			errCh <- err
+		if client != nil {
+			err = client.Call("Protocol.PingRequest", req, resp)
+			if err != nil {
+				errCh <- err
+				return
+			}
 		}
 
 		bumpPiggybackCounters()
@@ -134,6 +142,7 @@ func sendPingRequest(node *Node, target string, timeout time.Duration) (*PingRes
 		}
 		return resp, err
 	case <-time.After(timeout):
+		logger.Warningf("Ping request %s timeout", target)
 		return nil, errors.New("ping request timed out")
 	}
 }
