@@ -127,7 +127,7 @@ func (sr *SwimRing) HandleChanges(changes []membership.Change) {
 }
 
 func (sr *SwimRing) registerRPCHandlers(handleHTTP bool) error {
-	addr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("0.0.0.0:%d", sr.config.InternalPort))
+	addr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf(":%d", sr.config.InternalPort))
 	if err != nil {
 		return err
 	}
