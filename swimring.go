@@ -2,11 +2,14 @@ package main
 
 import (
 	"fmt"
+	"net"
+	"net/rpc"
 	"sync"
 
 	"github.com/dgryski/go-farm"
 	"github.com/hungys/swimring/hashring"
 	"github.com/hungys/swimring/membership"
+	"github.com/hungys/swimring/storage"
 )
 
 type configuration struct {
@@ -24,6 +27,7 @@ type SwimRing struct {
 
 	node *membership.Node
 	ring *hashring.HashRing
+	kvs  *storage.KVStore
 }
 
 type status uint
@@ -52,6 +56,8 @@ func (sr *SwimRing) init() error {
 	})
 
 	sr.ring = hashring.NewHashRing(farm.Fingerprint32, 3)
+	sr.kvs = storage.NewKVStore()
+
 	sr.setStatus(initialized)
 
 	return nil
@@ -83,7 +89,7 @@ func (sr *SwimRing) Bootstrap() ([]string, error) {
 		sr.setStatus(initialized)
 	}
 
-	sr.registerRPCHandlers()
+	sr.registerRPCHandlers(false)
 	sr.setStatus(ready)
 
 	return joined, nil
@@ -104,6 +110,24 @@ func (sr *SwimRing) HandleChanges(changes []membership.Change) {
 	sr.ring.AddRemoveServers(serversToAdd, serversToRemove)
 }
 
-func (sr *SwimRing) registerRPCHandlers() {
-	sr.node.RegisterRPCHandlers(sr.config.InternalPort, false)
+func (sr *SwimRing) registerRPCHandlers(handleHTTP bool) error {
+	addr, err := net.ResolveTCPAddr("tcp", "0.0.0.0:"+sr.config.InternalPort)
+	if err != nil {
+		return err
+	}
+
+	conn, err := net.ListenTCP("tcp", addr)
+	if err != nil {
+		return err
+	}
+
+	sr.node.RegisterRPCHandlers()
+	sr.kvs.RegisterRPCHandlers()
+
+	if handleHTTP {
+		rpc.HandleHTTP()
+	}
+	rpc.Accept(conn)
+
+	return nil
 }

@@ -2,7 +2,6 @@ package membership
 
 import (
 	"errors"
-	"net"
 	"net/rpc"
 	"sync"
 	"time"
@@ -185,24 +184,8 @@ func (n *Node) Bootstrap() ([]string, error) {
 	return nodesJoined, nil
 }
 
-func (n *Node) RegisterRPCHandlers(port string, handleHTTP bool) error {
-	addr, err := net.ResolveTCPAddr("tcp", "0.0.0.0:"+port)
-	if err != nil {
-		return err
-	}
-
-	conn, err := net.ListenTCP("tcp", addr)
-	if err != nil {
-		return err
-	}
-
-	if handleHTTP {
-		rpc.HandleHTTP()
-	}
-	rpc.RegisterName("Protocol", n.protocolHandlers)
-	rpc.Accept(conn)
-
-	return nil
+func (n *Node) RegisterRPCHandlers() error {
+	return rpc.RegisterName("Protocol", n.protocolHandlers)
 }
 
 func (n *Node) handleChanges(changes []Change) {
