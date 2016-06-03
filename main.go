@@ -64,6 +64,8 @@ func loadConfig() *configuration {
 		PingRequestTimeout: 5000,
 		MinProtocolPeriod:  200,
 		PingRequestSize:    3,
+		VirtualNodeSize:    5,
+		KVSReplicaPoints:   3,
 		BootstrapNodes:     []string{},
 	}
 

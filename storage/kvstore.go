@@ -11,18 +11,21 @@ import (
 var logger = logging.MustGetLogger("storage")
 
 type KVStore struct {
-	db map[string]*KVEntry
+	address string
+	db      map[string]*KVEntry
 
 	requestHandlers *RequestHandlers
 }
 
 type KVEntry struct {
-	value     string
-	timestamp int
+	Value     string
+	Timestamp int
 }
 
-func NewKVStore() *KVStore {
-	kvs := &KVStore{}
+func NewKVStore(address string) *KVStore {
+	kvs := &KVStore{
+		address: address,
+	}
 	requestHandlers := NewRequestHandler(kvs)
 	kvs.requestHandlers = requestHandlers
 
@@ -43,8 +46,8 @@ func (k *KVStore) Put(key, value string) error {
 		k.db[key] = &KVEntry{}
 	}
 
-	k.db[key].value = value
-	k.db[key].timestamp = int(time.Now().Unix())
+	k.db[key].Value = value
+	k.db[key].Timestamp = int(time.Now().Unix())
 	return nil
 }
 

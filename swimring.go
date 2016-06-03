@@ -26,6 +26,9 @@ type configuration struct {
 	MinProtocolPeriod int `yaml:"MinProtocolPeriod"`
 	PingRequestSize   int `yaml:"PingRequestSize"`
 
+	VirtualNodeSize  int `yaml:"VirtualNodeSize"`
+	KVSReplicaPoints int `yaml:"KVSReplicaPoints"`
+
 	BootstrapNodes []string `yaml:"BootstrapNodes"`
 }
 
@@ -72,8 +75,8 @@ func (sr *SwimRing) init() error {
 		BootstrapNodes:     sr.config.BootstrapNodes,
 	})
 
-	sr.ring = hashring.NewHashRing(farm.Fingerprint32, 3)
-	sr.kvs = storage.NewKVStore()
+	sr.ring = hashring.NewHashRing(farm.Fingerprint32, sr.config.VirtualNodeSize)
+	sr.kvs = storage.NewKVStore(address)
 	sr.rc = NewRequestCoordinator(sr)
 
 	sr.setStatus(initialized)
