@@ -3,7 +3,11 @@ package storage
 import (
 	"errors"
 	"net/rpc"
+
+	"github.com/op/go-logging"
 )
+
+var logger = logging.MustGetLogger("storage")
 
 type KVStore struct {
 	db map[string]string
@@ -44,5 +48,7 @@ func (k *KVStore) Delete(key string) error {
 }
 
 func (k *KVStore) RegisterRPCHandlers() error {
-	return rpc.RegisterName("KVS", k.requestHandlers)
+	rpc.RegisterName("KVS", k.requestHandlers)
+	logger.Info("KVS request RPC handlers registered")
+	return nil
 }

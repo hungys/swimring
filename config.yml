@@ -1,0 +1,10 @@
+ExternalPort: 7000
+InternalPort: 7001
+JoinTimeout: 1000
+SuspectTimeout: 5000
+PingTimeout: 1500
+PingRequestTimeout: 5000
+MinProtocolPeriod: 200
+PingRequestSize: 3
+BootstrapNodes:
+    - :7001

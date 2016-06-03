@@ -2,8 +2,11 @@ package main
 
 import (
 	"flag"
-	"fmt"
+	"io/ioutil"
 	"os"
+	"strings"
+
+	"gopkg.in/yaml.v2"
 
 	"github.com/hungys/swimring/util"
 	"github.com/op/go-logging"
@@ -12,28 +15,27 @@ import (
 var logger = logging.MustGetLogger("swimring")
 
 func main() {
-	var localIPAddr, externalPort, internalPort string
-
-	flag.StringVar(&externalPort, "export", "7000", "port number for external request")
-	flag.StringVar(&internalPort, "inport", "7001", "port number for internal protocal communication")
-	flag.Parse()
-
-	localIPAddr = util.GetLocalIP()
+	var externalPort, internalPort int
+	var localIPAddr string
 
 	initializeLogger()
+	localIPAddr = util.GetLocalIP()
+	config := loadConfig()
+
+	flag.IntVar(&externalPort, "export", config.ExternalPort, "port number for external request")
+	flag.IntVar(&internalPort, "inport", config.InternalPort, "port number for internal protocal communication")
+	flag.Parse()
+
+	config.Host = localIPAddr
+	config.ExternalPort = externalPort
+	config.InternalPort = internalPort
 
 	logger.Infof("IP address: %s", localIPAddr)
-	logger.Infof("External port: %s", externalPort)
-	logger.Infof("Internal port: %s", internalPort)
+	logger.Infof("External port: %d", config.ExternalPort)
+	logger.Infof("Internal port: %d", config.InternalPort)
+	logger.Infof("Bootsrap nodes: %v", config.BootstrapNodes)
 
-	configuration := &configuration{
-		Host:           localIPAddr,
-		ExternalPort:   externalPort,
-		InternalPort:   internalPort,
-		BootstrapNodes: []string{fmt.Sprintf("%s:%s", localIPAddr, "7001")},
-	}
-
-	swimring := NewSwimRing(configuration)
+	swimring := NewSwimRing(config)
 	swimring.Bootstrap()
 
 	select {}
@@ -47,4 +49,39 @@ func initializeLogger() {
 	backend := logging.NewLogBackend(os.Stderr, "", 0)
 	backendFormatter := logging.NewBackendFormatter(backend, format)
 	logging.SetBackend(backendFormatter)
+}
+
+func loadConfig() *configuration {
+	logger.Info("Loading configurations from config.yml")
+
+	config := &configuration{
+		Host:               "0.0.0.0",
+		ExternalPort:       7000,
+		InternalPort:       7001,
+		JoinTimeout:        1000,
+		SuspectTimeout:     5000,
+		PingTimeout:        1500,
+		PingRequestTimeout: 5000,
+		MinProtocolPeriod:  200,
+		PingRequestSize:    3,
+		BootstrapNodes:     []string{},
+	}
+
+	data, err := ioutil.ReadFile("config.yml")
+	if err != nil {
+		logger.Warning("Cannot load config.yml")
+	}
+
+	err = yaml.Unmarshal(data, config)
+	if err != nil {
+		logger.Error("Fail to unmarshal config.yml")
+	}
+
+	for i, addr := range config.BootstrapNodes {
+		if strings.HasPrefix(addr, ":") {
+			config.BootstrapNodes[i] = util.GetLocalIP() + addr
+		}
+	}
+
+	return config
 }

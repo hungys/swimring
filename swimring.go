@@ -5,6 +5,7 @@ import (
 	"net"
 	"net/rpc"
 	"sync"
+	"time"
 
 	"github.com/dgryski/go-farm"
 	"github.com/hungys/swimring/hashring"
@@ -13,10 +14,19 @@ import (
 )
 
 type configuration struct {
-	Host                       string
-	InternalPort, ExternalPort string
+	Host         string
+	ExternalPort int `yaml:"ExternalPort"`
+	InternalPort int `yaml:"InternalPort"`
 
-	BootstrapNodes []string
+	JoinTimeout        int `yaml:"JoinTimeout"`
+	SuspectTimeout     int `yaml:"SuspectTimeout"`
+	PingTimeout        int `yaml:"PingTimeout"`
+	PingRequestTimeout int `yaml:"PingRequestTimeout"`
+
+	MinProtocolPeriod int `yaml:"MinProtocolPeriod"`
+	PingRequestSize   int `yaml:"PingRequestSize"`
+
+	BootstrapNodes []string `yaml:"BootstrapNodes"`
 }
 
 type SwimRing struct {
@@ -49,10 +59,16 @@ func NewSwimRing(config *configuration) *SwimRing {
 }
 
 func (sr *SwimRing) init() error {
-	address := fmt.Sprintf("%s:%s", sr.config.Host, sr.config.InternalPort)
+	address := fmt.Sprintf("%s:%d", sr.config.Host, sr.config.InternalPort)
 
 	sr.node = membership.NewNode(sr, address, &membership.Options{
-		BootstrapNodes: sr.config.BootstrapNodes,
+		JoinTimeout:        time.Duration(sr.config.JoinTimeout) * time.Millisecond,
+		SuspectTimeout:     time.Duration(sr.config.SuspectTimeout) * time.Millisecond,
+		PingTimeout:        time.Duration(sr.config.PingTimeout) * time.Millisecond,
+		PingRequestTimeout: time.Duration(sr.config.PingRequestTimeout) * time.Millisecond,
+		MinProtocolPeriod:  time.Duration(sr.config.MinProtocolPeriod) * time.Millisecond,
+		PingRequestSize:    sr.config.PingRequestSize,
+		BootstrapNodes:     sr.config.BootstrapNodes,
 	})
 
 	sr.ring = hashring.NewHashRing(farm.Fingerprint32, 3)
@@ -84,12 +100,12 @@ func (sr *SwimRing) Bootstrap() ([]string, error) {
 		}
 	}
 
+	sr.registerRPCHandlers(false)
 	joined, err := sr.node.Bootstrap()
 	if err != nil {
 		sr.setStatus(initialized)
 	}
 
-	sr.registerRPCHandlers(false)
 	sr.setStatus(ready)
 
 	return joined, nil
@@ -111,7 +127,7 @@ func (sr *SwimRing) HandleChanges(changes []membership.Change) {
 }
 
 func (sr *SwimRing) registerRPCHandlers(handleHTTP bool) error {
-	addr, err := net.ResolveTCPAddr("tcp", "0.0.0.0:"+sr.config.InternalPort)
+	addr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("0.0.0.0:%d", sr.config.InternalPort))
 	if err != nil {
 		return err
 	}
@@ -127,7 +143,9 @@ func (sr *SwimRing) registerRPCHandlers(handleHTTP bool) error {
 	if handleHTTP {
 		rpc.HandleHTTP()
 	}
-	rpc.Accept(conn)
+	go rpc.Accept(conn)
+
+	logger.Noticef("RPC server listening at port %d...", sr.config.InternalPort)
 
 	return nil
 }

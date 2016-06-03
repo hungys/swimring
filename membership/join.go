@@ -7,7 +7,7 @@ import (
 
 func sendJoin(node *Node, target string, timeout time.Duration) (*JoinResponse, error) {
 	if target == node.Address() {
-		logger.Warning("Cannot join local node")
+		logger.Error("Cannot join local node")
 		return nil, errors.New("cannot join local node")
 	}
 

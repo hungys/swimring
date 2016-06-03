@@ -185,7 +185,9 @@ func (n *Node) Bootstrap() ([]string, error) {
 }
 
 func (n *Node) RegisterRPCHandlers() error {
-	return rpc.RegisterName("Protocol", n.protocolHandlers)
+	rpc.RegisterName("Protocol", n.protocolHandlers)
+	logger.Info("Protocol RPC handlers registered")
+	return nil
 }
 
 func (n *Node) handleChanges(changes []Change) {
@@ -239,7 +241,7 @@ func (n *Node) pingNextMember() {
 
 	if !targetReached {
 		if member.Status != Suspect {
-			logger.Warningf("Cannot reach %s, mark it suspect", member.Address)
+			logger.Errorf("Cannot reach %s, mark it suspect", member.Address)
 		}
 		n.memberlist.MarkSuspect(member.Address, member.Incarnation)
 		return
