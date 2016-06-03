@@ -47,8 +47,8 @@ func (k *KVStore) Delete(key string) error {
 	return nil
 }
 
-func (k *KVStore) RegisterRPCHandlers() error {
-	rpc.RegisterName("KVS", k.requestHandlers)
+func (k *KVStore) RegisterRPCHandlers(server *rpc.Server) error {
+	server.RegisterName("KVS", k.requestHandlers)
 	logger.Info("KVS request RPC handlers registered")
 	return nil
 }

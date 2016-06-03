@@ -38,6 +38,7 @@ type SwimRing struct {
 	node *membership.Node
 	ring *hashring.HashRing
 	kvs  *storage.KVStore
+	rc   *RequestCoordinator
 }
 
 type status uint
@@ -73,6 +74,7 @@ func (sr *SwimRing) init() error {
 
 	sr.ring = hashring.NewHashRing(farm.Fingerprint32, 3)
 	sr.kvs = storage.NewKVStore()
+	sr.rc = NewRequestCoordinator(sr)
 
 	sr.setStatus(initialized)
 
@@ -100,7 +102,8 @@ func (sr *SwimRing) Bootstrap() ([]string, error) {
 		}
 	}
 
-	sr.registerRPCHandlers(false)
+	sr.registerInternalRPCHandlers()
+	sr.registerExternalRPCHandlers()
 	joined, err := sr.node.Bootstrap()
 	if err != nil {
 		sr.setStatus(initialized)
@@ -126,7 +129,7 @@ func (sr *SwimRing) HandleChanges(changes []membership.Change) {
 	sr.ring.AddRemoveServers(serversToAdd, serversToRemove)
 }
 
-func (sr *SwimRing) registerRPCHandlers(handleHTTP bool) error {
+func (sr *SwimRing) registerInternalRPCHandlers() error {
 	addr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf(":%d", sr.config.InternalPort))
 	if err != nil {
 		return err
@@ -137,15 +140,32 @@ func (sr *SwimRing) registerRPCHandlers(handleHTTP bool) error {
 		return err
 	}
 
-	sr.node.RegisterRPCHandlers()
-	sr.kvs.RegisterRPCHandlers()
+	server := rpc.NewServer()
+	sr.node.RegisterRPCHandlers(server)
+	sr.kvs.RegisterRPCHandlers(server)
+	go server.Accept(conn)
 
-	if handleHTTP {
-		rpc.HandleHTTP()
+	logger.Noticef("Internal RPC server listening at port %d...", sr.config.InternalPort)
+
+	return nil
+}
+
+func (sr *SwimRing) registerExternalRPCHandlers() error {
+	addr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf(":%d", sr.config.ExternalPort))
+	if err != nil {
+		return err
 	}
-	go rpc.Accept(conn)
 
-	logger.Noticef("RPC server listening at port %d...", sr.config.InternalPort)
+	conn, err := net.ListenTCP("tcp", addr)
+	if err != nil {
+		return err
+	}
+
+	server := rpc.NewServer()
+	server.RegisterName("SwimRing", sr.rc)
+	go server.Accept(conn)
+
+	logger.Noticef("External RPC server listening at port %d...", sr.config.ExternalPort)
 
 	return nil
 }

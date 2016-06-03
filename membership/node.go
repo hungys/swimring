@@ -184,8 +184,8 @@ func (n *Node) Bootstrap() ([]string, error) {
 	return nodesJoined, nil
 }
 
-func (n *Node) RegisterRPCHandlers() error {
-	rpc.RegisterName("Protocol", n.protocolHandlers)
+func (n *Node) RegisterRPCHandlers(server *rpc.Server) error {
+	server.RegisterName("Protocol", n.protocolHandlers)
 	logger.Info("Protocol RPC handlers registered")
 	return nil
 }
