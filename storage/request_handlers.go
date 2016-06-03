@@ -9,7 +9,8 @@ type GetRequest struct {
 }
 
 type GetResponse struct {
-	key, value string
+	key   string
+	value KVEntry
 }
 
 type PutRequest struct {
@@ -41,7 +42,7 @@ func (rh *RequestHandlers) Get(req *GetRequest, resp *GetResponse) error {
 	}
 
 	resp.key = req.key
-	resp.value = value
+	resp.value = *value
 	return nil
 }
 

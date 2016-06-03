@@ -1,11 +1,18 @@
 package main
 
+const (
+	ONE    = "ONE"
+	QUORUM = "QUORUM"
+	ALL    = "ALL"
+)
+
 type RequestCoordinator struct {
 	sr *SwimRing
 }
 
 type GetRequest struct {
-	key string
+	level string
+	key   string
 }
 
 type GetResponse struct {
@@ -13,6 +20,7 @@ type GetResponse struct {
 }
 
 type PutRequest struct {
+	level      string
 	key, value string
 }
 
@@ -21,7 +29,8 @@ type PutResponse struct {
 }
 
 type DeleteRequest struct {
-	key string
+	level string
+	key   string
 }
 
 type DeleteResponse struct{}

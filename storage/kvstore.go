@@ -3,6 +3,7 @@ package storage
 import (
 	"errors"
 	"net/rpc"
+	"time"
 
 	"github.com/op/go-logging"
 )
@@ -10,9 +11,14 @@ import (
 var logger = logging.MustGetLogger("storage")
 
 type KVStore struct {
-	db map[string]string
+	db map[string]*KVEntry
 
 	requestHandlers *RequestHandlers
+}
+
+type KVEntry struct {
+	value     string
+	timestamp int
 }
 
 func NewKVStore() *KVStore {
@@ -23,17 +29,22 @@ func NewKVStore() *KVStore {
 	return kvs
 }
 
-func (k *KVStore) Get(key string) (string, error) {
+func (k *KVStore) Get(key string) (*KVEntry, error) {
 	value, ok := k.db[key]
 	if !ok {
-		return "", errors.New("key not found")
+		return nil, errors.New("key not found")
 	}
 
 	return value, nil
 }
 
 func (k *KVStore) Put(key, value string) error {
-	k.db[key] = value
+	if _, ok := k.db[key]; !ok {
+		k.db[key] = &KVEntry{}
+	}
+
+	k.db[key].value = value
+	k.db[key].timestamp = int(time.Now().Unix())
 	return nil
 }
 
