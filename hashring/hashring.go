@@ -134,7 +134,7 @@ func (r *HashRing) LookupN(key string, n int) []string {
 	servers := r.lookupNNoLock(key, n)
 	r.RUnlock()
 
-	logger.Debugf("LookupN(%s)=%v", key, servers)
+	logger.Debugf("LookupN(%s) = %v", key, servers)
 	return servers
 }
 

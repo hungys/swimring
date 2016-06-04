@@ -50,6 +50,9 @@ func (k *KVStore) Put(key, value string) error {
 
 	k.db[key].Value = value
 	k.db[key].Timestamp = int(time.Now().Unix())
+
+	logger.Infof("Key-value pair (%s, %s) updated", key, value)
+
 	return nil
 }
 
@@ -60,6 +63,9 @@ func (k *KVStore) Delete(key string) error {
 	}
 
 	delete(k.db, key)
+
+	logger.Infof("Key %s deleted", key)
+
 	return nil
 }
 

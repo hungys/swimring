@@ -9,6 +9,9 @@ type GetRequest struct {
 }
 
 type GetResponse struct {
+	Ok      bool
+	Message string
+
 	Node  string
 	Key   string
 	Value KVEntry
@@ -18,13 +21,19 @@ type PutRequest struct {
 	Key, Value string
 }
 
-type PutResponse struct{}
+type PutResponse struct {
+	Ok      bool
+	Message string
+}
 
 type DeleteRequest struct {
 	Key string
 }
 
-type DeleteResponse struct{}
+type DeleteResponse struct {
+	Ok      bool
+	Message string
+}
 
 func NewRequestHandler(kvs *KVStore) *RequestHandlers {
 	rh := &RequestHandlers{
@@ -35,27 +44,46 @@ func NewRequestHandler(kvs *KVStore) *RequestHandlers {
 }
 
 func (rh *RequestHandlers) Get(req *GetRequest, resp *GetResponse) error {
-	logger.Debugf("Handling Get(%s)", req.Key)
+	logger.Infof("Handling intrnal request Get(%s)", req.Key)
 
 	value, err := rh.kvs.Get(req.Key)
+	resp.Node = rh.kvs.address
 	if err != nil {
-		return err
+		resp.Ok = false
+		resp.Message = err.Error()
+		return nil
 	}
 
-	resp.Node = rh.kvs.address
+	resp.Ok = true
 	resp.Key = req.Key
 	resp.Value = *value
 	return nil
 }
 
 func (rh *RequestHandlers) Put(req *PutRequest, resp *PutResponse) error {
-	logger.Debugf("Handling Put(%s, %s)", req.Key, req.Value)
+	logger.Infof("Handling intrnal request Put(%s, %s)", req.Key, req.Value)
 
-	return rh.kvs.Put(req.Key, req.Value)
+	err := rh.kvs.Put(req.Key, req.Value)
+	if err != nil {
+		resp.Ok = false
+		resp.Message = err.Error()
+		return nil
+	}
+
+	resp.Ok = true
+	return nil
 }
 
 func (rh *RequestHandlers) Delete(req *DeleteRequest, resp *DeleteResponse) error {
-	logger.Debugf("Handling Delete(%s)", req.Key)
+	logger.Infof("Handling intrnal request Delete(%s)", req.Key)
 
-	return rh.kvs.Delete(req.Key)
+	err := rh.kvs.Delete(req.Key)
+	if err != nil {
+		resp.Ok = false
+		resp.Message = err.Error()
+		return nil
+	}
+
+	resp.Ok = true
+	return nil
 }

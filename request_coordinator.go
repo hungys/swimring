@@ -54,7 +54,7 @@ func NewRequestCoordinator(sr *SwimRing) *RequestCoordinator {
 }
 
 func (rc *RequestCoordinator) Get(req *GetRequest, resp *GetResponse) error {
-	logger.Debugf("Coordinating for request Get(%s, %s)", req.Key, req.Level)
+	logger.Debugf("Coordinating external request Get(%s, %s)", req.Key, req.Level)
 
 	internalReq := &storage.GetRequest{
 		Key: req.Key,
@@ -66,6 +66,7 @@ func (rc *RequestCoordinator) Get(req *GetRequest, resp *GetResponse) error {
 
 	ackNeed := rc.numOfRequiredACK(req.Level)
 	ackReceived := 0
+	ackOk := 0
 	latestTimestamp := 0
 	latestValue := ""
 
@@ -74,15 +75,26 @@ func (rc *RequestCoordinator) Get(req *GetRequest, resp *GetResponse) error {
 	for result := range resCh {
 		switch res := result.(type) {
 		case *storage.GetResponse:
-			ackReceived++
 			resList = append(resList, res)
-			if res.Value.Timestamp > latestTimestamp {
+
+			ackReceived++
+			if res.Ok {
+				ackOk++
+			}
+
+			if res.Ok && res.Value.Timestamp > latestTimestamp {
 				latestValue = res.Value.Value
 			}
 
 			if ackReceived >= ackNeed {
+				go rc.readRepair(resList, req.Key, latestValue, latestTimestamp, ackOk, resCh)
+
+				if ackOk == 0 {
+					logger.Debugf("No ACK with Ok received for Get(%s): %s", req.Key, res.Message)
+					return errors.New(res.Message)
+				}
+
 				resp.Value = latestValue
-				go rc.readRepair(resList, req.Key, latestValue, latestTimestamp, resCh)
 				return nil
 			}
 		case error:
@@ -95,7 +107,7 @@ func (rc *RequestCoordinator) Get(req *GetRequest, resp *GetResponse) error {
 }
 
 func (rc *RequestCoordinator) Put(req *PutRequest, resp *PutResponse) error {
-	logger.Debugf("Coordinating for request Put(%s, %s, %s)", req.Key, req.Value, req.Level)
+	logger.Debugf("Coordinating external request Put(%s, %s, %s)", req.Key, req.Value, req.Level)
 
 	internalReq := &storage.PutRequest{
 		Key:   req.Key,
@@ -107,12 +119,21 @@ func (rc *RequestCoordinator) Put(req *PutRequest, resp *PutResponse) error {
 
 	ackNeed := rc.numOfRequiredACK(req.Level)
 	ackReceived := 0
+	ackOk := 0
 
 	for result := range resCh {
-		switch result.(type) {
+		switch res := result.(type) {
 		case *storage.PutResponse:
 			ackReceived++
+			if res.Ok {
+				ackOk++
+			}
+
 			if ackReceived >= ackNeed {
+				if ackOk == 0 {
+					logger.Debugf("No ACK with Ok received for Put(%s, %s): %s", req.Key, req.Value, res.Message)
+					return errors.New(res.Message)
+				}
 				return nil
 			}
 		case error:
@@ -125,7 +146,7 @@ func (rc *RequestCoordinator) Put(req *PutRequest, resp *PutResponse) error {
 }
 
 func (rc *RequestCoordinator) Delete(req *DeleteRequest, resp *DeleteResponse) error {
-	logger.Debugf("Coordinating for request Delete(%s, %s)", req.Key, req.Level)
+	logger.Debugf("Coordinating external request Delete(%s, %s)", req.Key, req.Level)
 
 	internalReq := &storage.DeleteRequest{
 		Key: req.Key,
@@ -136,12 +157,21 @@ func (rc *RequestCoordinator) Delete(req *DeleteRequest, resp *DeleteResponse) e
 
 	ackNeed := rc.numOfRequiredACK(req.Level)
 	ackReceived := 0
+	ackOk := 0
 
 	for result := range resCh {
-		switch result.(type) {
+		switch res := result.(type) {
 		case *storage.DeleteResponse:
 			ackReceived++
+			if res.Ok {
+				ackOk++
+			}
+
 			if ackReceived >= ackNeed {
+				if ackOk == 0 {
+					logger.Debugf("No ACK with Ok received for Delete(%s): %s", req.Key, res.Message)
+					return errors.New(res.Message)
+				}
 				return nil
 			}
 		case error:
@@ -218,15 +248,21 @@ func (rc *RequestCoordinator) numOfRequiredACK(level string) int {
 	return rc.sr.config.KVSReplicaPoints
 }
 
-func (rc *RequestCoordinator) readRepair(resList []*storage.GetResponse, key string, value string, timestamp int, resCh <-chan interface{}) {
+func (rc *RequestCoordinator) readRepair(resList []*storage.GetResponse, key string, value string, timestamp int, okCount int, resCh <-chan interface{}) {
 	latestTimestamp := timestamp
 	latestValue := value
+	ackOk := okCount
 
 	for result := range resCh {
 		switch res := result.(type) {
 		case *storage.GetResponse:
 			resList = append(resList, res)
-			if res.Value.Timestamp > latestTimestamp {
+
+			if res.Ok {
+				ackOk++
+			}
+
+			if res.Ok && res.Value.Timestamp > latestTimestamp {
 				latestValue = res.Value.Value
 			}
 		case error:
@@ -234,8 +270,12 @@ func (rc *RequestCoordinator) readRepair(resList []*storage.GetResponse, key str
 		}
 	}
 
+	if ackOk == 0 {
+		return
+	}
+
 	for _, res := range resList {
-		if res.Value.Value != latestValue {
+		if !res.Ok || res.Value.Value != latestValue {
 			logger.Debugf("Initiating read repair for %s: (%s, %s)", res.Node, key, latestValue)
 			go rc.sendRPCRequest(res.Node, PutOp, &storage.PutRequest{
 				Key:   key,
