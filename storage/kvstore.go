@@ -3,6 +3,7 @@ package storage
 import (
 	"errors"
 	"net/rpc"
+	"sync"
 	"time"
 
 	"github.com/op/go-logging"
@@ -11,6 +12,7 @@ import (
 var logger = logging.MustGetLogger("storage")
 
 type KVStore struct {
+	sync.RWMutex
 	address string
 	db      map[string]*KVEntry
 
@@ -35,7 +37,10 @@ func NewKVStore(address string) *KVStore {
 }
 
 func (k *KVStore) Get(key string) (*KVEntry, error) {
+	k.RLock()
 	value, ok := k.db[key]
+	k.RUnlock()
+
 	if !ok {
 		return nil, errors.New("key not found")
 	}
@@ -44,12 +49,13 @@ func (k *KVStore) Get(key string) (*KVEntry, error) {
 }
 
 func (k *KVStore) Put(key, value string) error {
+	k.Lock()
 	if _, ok := k.db[key]; !ok {
 		k.db[key] = &KVEntry{}
 	}
-
 	k.db[key].Value = value
 	k.db[key].Timestamp = int(time.Now().Unix())
+	k.Unlock()
 
 	logger.Infof("Key-value pair (%s, %s) updated", key, value)
 
@@ -57,12 +63,15 @@ func (k *KVStore) Put(key, value string) error {
 }
 
 func (k *KVStore) Delete(key string) error {
+	k.Lock()
 	_, ok := k.db[key]
 	if !ok {
+		k.Unlock()
 		return errors.New("key not found")
 	}
 
 	delete(k.db, key)
+	k.Unlock()
 
 	logger.Infof("Key %s deleted", key)
 
