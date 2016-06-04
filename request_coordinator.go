@@ -13,9 +13,9 @@ const (
 	ONE      = "ONE"
 	QUORUM   = "QUORUM"
 	ALL      = "ALL"
-	GetOp    = "SwimRing.Get"
-	PutOp    = "SwimRing.Put"
-	DeleteOp = "SwimRing.Delete"
+	GetOp    = "KVS.Get"
+	PutOp    = "KVS.Put"
+	DeleteOp = "KVS.Delete"
 )
 
 type RequestCoordinator struct {
@@ -90,7 +90,7 @@ func (rc *RequestCoordinator) Get(req *GetRequest, resp *GetResponse) error {
 		}
 	}
 
-	logger.Error("Cannot reach consistency requirements for Get(%s, %s)", req.Key, req.Level)
+	logger.Errorf("Cannot reach consistency requirements for Get(%s, %s)", req.Key, req.Level)
 	return errors.New("cannot reach consistency level")
 }
 
@@ -120,7 +120,7 @@ func (rc *RequestCoordinator) Put(req *PutRequest, resp *PutResponse) error {
 		}
 	}
 
-	logger.Error("Cannot reach consistency requirements for Put(%s, %s, %s)", req.Key, req.Value, req.Level)
+	logger.Errorf("Cannot reach consistency requirements for Put(%s, %s, %s)", req.Key, req.Value, req.Level)
 	return errors.New("cannot reach consistency level")
 }
 
@@ -149,7 +149,7 @@ func (rc *RequestCoordinator) Delete(req *DeleteRequest, resp *DeleteResponse) e
 		}
 	}
 
-	logger.Error("Cannot reach consistency requirements for Delete(%s, %s)", req.Key, req.Level)
+	logger.Errorf("Cannot reach consistency requirements for Delete(%s, %s)", req.Key, req.Level)
 	return errors.New("cannot reach consistency level")
 }
 
@@ -197,7 +197,7 @@ func (rc *RequestCoordinator) sendRPCRequest(server string, op string, req inter
 		resp = &storage.DeleteResponse{}
 	}
 
-	err = client.Call(GetOp, req, resp)
+	err = client.Call(op, req, resp)
 	if err != nil {
 		return nil, err
 	}

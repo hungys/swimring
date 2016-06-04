@@ -26,6 +26,8 @@ func NewKVStore(address string) *KVStore {
 	kvs := &KVStore{
 		address: address,
 	}
+	kvs.db = make(map[string]*KVEntry)
+
 	requestHandlers := NewRequestHandler(kvs)
 	kvs.requestHandlers = requestHandlers
 

@@ -35,6 +35,8 @@ func NewRequestHandler(kvs *KVStore) *RequestHandlers {
 }
 
 func (rh *RequestHandlers) Get(req *GetRequest, resp *GetResponse) error {
+	logger.Debugf("Handling Get(%s)", req.Key)
+
 	value, err := rh.kvs.Get(req.Key)
 	if err != nil {
 		return err
@@ -47,9 +49,13 @@ func (rh *RequestHandlers) Get(req *GetRequest, resp *GetResponse) error {
 }
 
 func (rh *RequestHandlers) Put(req *PutRequest, resp *PutResponse) error {
+	logger.Debugf("Handling Put(%s, %s)", req.Key, req.Value)
+
 	return rh.kvs.Put(req.Key, req.Value)
 }
 
 func (rh *RequestHandlers) Delete(req *DeleteRequest, resp *DeleteResponse) error {
+	logger.Debugf("Handling Delete(%s)", req.Key)
+
 	return rh.kvs.Delete(req.Key)
 }
