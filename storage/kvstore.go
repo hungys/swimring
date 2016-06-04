@@ -63,6 +63,6 @@ func (k *KVStore) Delete(key string) error {
 
 func (k *KVStore) RegisterRPCHandlers(server *rpc.Server) error {
 	server.RegisterName("KVS", k.requestHandlers)
-	logger.Info("KVS request RPC handlers registered")
+	logger.Info("Internal KVS request RPC handlers registered")
 	return nil
 }

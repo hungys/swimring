@@ -33,7 +33,8 @@ func sendJoin(node *Node, target string, timeout time.Duration) (*JoinResponse, 
 	select {
 	case err = <-errCh:
 	case <-time.After(timeout):
-		err = errors.New("join timed out")
+		logger.Error("Join request timeout")
+		err = errors.New("join timeout")
 	}
 
 	if err != nil {

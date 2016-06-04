@@ -115,6 +115,8 @@ func (n *Node) Start() {
 	n.status.Lock()
 	n.status.stopped = false
 	n.status.Unlock()
+
+	logger.Noticef("Local node %s started", n.Address())
 }
 
 func (n *Node) Stop() {
@@ -124,6 +126,8 @@ func (n *Node) Stop() {
 	n.status.Lock()
 	n.status.stopped = true
 	n.status.Unlock()
+
+	logger.Noticef("Local node %s stopped", n.Address())
 }
 
 func (n *Node) Stopped() bool {
@@ -144,6 +148,8 @@ func (n *Node) Destroy() {
 	n.status.Unlock()
 
 	n.Stop()
+
+	logger.Noticef("Local node %s destroyed", n.Address())
 }
 
 func (n *Node) Destroyed() bool {
@@ -173,6 +179,8 @@ func (n *Node) Incarnation() int64 {
 }
 
 func (n *Node) Bootstrap() ([]string, error) {
+	logger.Notice("Bootstrapping local node...")
+
 	n.memberlist.Reincarnate()
 	nodesJoined := n.joinCluster()
 	n.gossip.Start()
@@ -186,7 +194,7 @@ func (n *Node) Bootstrap() ([]string, error) {
 
 func (n *Node) RegisterRPCHandlers(server *rpc.Server) error {
 	server.RegisterName("Protocol", n.protocolHandlers)
-	logger.Info("Protocol RPC handlers registered")
+	logger.Info("SWIM protocol RPC handlers registered")
 	return nil
 }
 

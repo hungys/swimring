@@ -29,7 +29,7 @@ func newStateTransitions(n *Node) *stateTransitions {
 func (s *stateTransitions) ScheduleSuspectToFaulty(change Change) {
 	s.Lock()
 	s.schedule(change, Suspect, s.node.suspectTimeout, func() {
-		logger.Noticef("Suspect timer expired, mark %s faulty", change.Address)
+		logger.Warningf("Suspect timer expired, mark %s as faulty node", change.Address)
 		s.node.memberlist.MarkFaulty(change.Address, change.Incarnation)
 	})
 	logger.Infof("Suspect timer for %s scheduled", change.Address)
@@ -77,10 +77,14 @@ func (s *stateTransitions) Enable() {
 	s.Lock()
 	s.enabled = true
 	s.Unlock()
+
+	logger.Notice("State transitions enabled")
 }
 
 func (s *stateTransitions) Disable() {
 	s.Lock()
 	s.enabled = false
 	s.Unlock()
+
+	logger.Notice("State transitions disabled")
 }

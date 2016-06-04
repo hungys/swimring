@@ -7,6 +7,7 @@ import (
 	"net/rpc"
 	"sort"
 	"sync"
+	"time"
 
 	"github.com/dgryski/go-farm"
 )
@@ -206,7 +207,7 @@ func (m *memberlist) RandomPingableMembers(n int, excluding map[string]bool) []*
 }
 
 func (m *memberlist) Reincarnate() []Change {
-	return m.MarkAlive(m.node.Address(), 0)
+	return m.MarkAlive(m.node.Address(), time.Now().Unix())
 }
 
 func (m *memberlist) MarkAlive(address string, incarnation int64) []Change {
@@ -264,7 +265,7 @@ func (m *memberlist) Update(changes []Change) (applied []Change) {
 				Source:            change.Source,
 				SourceIncarnation: change.SourceIncarnation,
 				Address:           change.Address,
-				Incarnation:       m.node.Incarnation() + 1,
+				Incarnation:       time.Now().Unix(),
 				Status:            Alive,
 			}
 
@@ -329,12 +330,16 @@ func (m *memberlist) applyChange(change Change) bool {
 		m.members.byAddress[change.Address] = member
 		i := m.getJoinPosition()
 		m.members.list = append(m.members.list[:i], append([]*Member{member}, m.members.list[i:]...)...)
+
+		logger.Noticef("Server %s added to memberlist", member.Address)
 	}
 
 	member.Lock()
 	member.Status = change.Status
 	member.Incarnation = change.Incarnation
 	member.Unlock()
+
+	logger.Noticef("%s is marked as %s node", member.Address, change.Status)
 
 	return true
 }

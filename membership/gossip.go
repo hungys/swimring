@@ -55,6 +55,8 @@ func (g *gossip) Start() {
 
 	g.SetStopped(false)
 	g.RunProtocolPeriodLoop()
+
+	logger.Notice("Gossip protocol started")
 }
 
 func (g *gossip) Stop() {
@@ -63,6 +65,8 @@ func (g *gossip) Stop() {
 	}
 
 	g.SetStopped(true)
+
+	logger.Notice("Gossip protocol stopped")
 }
 
 func (g *gossip) ProtocolPeriod() {

@@ -45,8 +45,8 @@ func sendPingWithChanges(node *Node, target string, changes []Change, timeout ti
 	select {
 	case err = <-errCh:
 	case <-time.After(timeout):
-		logger.Warningf("Ping %s timeout", target)
-		err = errors.New("ping timed out")
+		logger.Warningf("Ping to %s timeout", target)
+		err = errors.New("ping timeout")
 	}
 
 	if err != nil {
@@ -142,7 +142,7 @@ func sendPingRequest(node *Node, peer string, target string, timeout time.Durati
 		}
 		return resp, err
 	case <-time.After(timeout):
-		logger.Warningf("Ping request %s timeout", target)
-		return nil, errors.New("ping request timed out")
+		logger.Warningf("Ping request to %s timeout", target)
+		return nil, errors.New("ping request timeout")
 	}
 }

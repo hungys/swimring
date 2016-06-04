@@ -124,6 +124,8 @@ func (r *HashRing) Lookup(key string) (string, bool) {
 	if len(strs) == 0 {
 		return "", false
 	}
+
+	logger.Debugf("Lookup(%s)=%s", key, strs[0])
 	return strs[0], true
 }
 
@@ -131,6 +133,8 @@ func (r *HashRing) LookupN(key string, n int) []string {
 	r.RLock()
 	servers := r.lookupNNoLock(key, n)
 	r.RUnlock()
+
+	logger.Debugf("LookupN(%s)=%v", key, servers)
 	return servers
 }
 

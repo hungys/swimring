@@ -166,6 +166,7 @@ func (sr *SwimRing) registerExternalRPCHandlers() error {
 
 	server := rpc.NewServer()
 	server.RegisterName("SwimRing", sr.rc)
+	logger.Info("External KVS request RPC handlers registered")
 	go server.Accept(conn)
 
 	logger.Noticef("External RPC server listening at port %d...", sr.config.ExternalPort)

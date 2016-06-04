@@ -54,12 +54,14 @@ func NewRequestCoordinator(sr *SwimRing) *RequestCoordinator {
 }
 
 func (rc *RequestCoordinator) Get(req *GetRequest, resp *GetResponse) error {
+	logger.Debugf("Coordinating for request Get(%s, %s)", req.Key, req.Level)
+
 	internalReq := &storage.GetRequest{
 		Key: req.Key,
 	}
 
 	replicas := rc.sr.ring.LookupN(req.Key, rc.sr.config.KVSReplicaPoints)
-	resCh := rc.sendBatchRPCRequests(replicas, GetOp, internalReq)
+	resCh := rc.sendRPCRequests(replicas, GetOp, internalReq)
 	resp.Key = req.Key
 
 	ackNeed := rc.numOfRequiredACK(req.Level)
@@ -88,17 +90,20 @@ func (rc *RequestCoordinator) Get(req *GetRequest, resp *GetResponse) error {
 		}
 	}
 
+	logger.Error("Cannot reach consistency requirements for Get(%s, %s)", req.Key, req.Level)
 	return errors.New("cannot reach consistency level")
 }
 
 func (rc *RequestCoordinator) Put(req *PutRequest, resp *PutResponse) error {
+	logger.Debugf("Coordinating for request Put(%s, %s, %s)", req.Key, req.Value, req.Level)
+
 	internalReq := &storage.PutRequest{
 		Key:   req.Key,
 		Value: req.Value,
 	}
 
 	replicas := rc.sr.ring.LookupN(req.Key, rc.sr.config.KVSReplicaPoints)
-	resCh := rc.sendBatchRPCRequests(replicas, PutOp, internalReq)
+	resCh := rc.sendRPCRequests(replicas, PutOp, internalReq)
 
 	ackNeed := rc.numOfRequiredACK(req.Level)
 	ackReceived := 0
@@ -115,16 +120,19 @@ func (rc *RequestCoordinator) Put(req *PutRequest, resp *PutResponse) error {
 		}
 	}
 
+	logger.Error("Cannot reach consistency requirements for Put(%s, %s, %s)", req.Key, req.Value, req.Level)
 	return errors.New("cannot reach consistency level")
 }
 
 func (rc *RequestCoordinator) Delete(req *DeleteRequest, resp *DeleteResponse) error {
+	logger.Debugf("Coordinating for request Delete(%s, %s)", req.Key, req.Level)
+
 	internalReq := &storage.DeleteRequest{
 		Key: req.Key,
 	}
 
 	replicas := rc.sr.ring.LookupN(req.Key, rc.sr.config.KVSReplicaPoints)
-	resCh := rc.sendBatchRPCRequests(replicas, DeleteOp, internalReq)
+	resCh := rc.sendRPCRequests(replicas, DeleteOp, internalReq)
 
 	ackNeed := rc.numOfRequiredACK(req.Level)
 	ackReceived := 0
@@ -141,10 +149,11 @@ func (rc *RequestCoordinator) Delete(req *DeleteRequest, resp *DeleteResponse) e
 		}
 	}
 
+	logger.Error("Cannot reach consistency requirements for Delete(%s, %s)", req.Key, req.Level)
 	return errors.New("cannot reach consistency level")
 }
 
-func (rc *RequestCoordinator) sendBatchRPCRequests(replicas []string, op string, req interface{}) <-chan interface{} {
+func (rc *RequestCoordinator) sendRPCRequests(replicas []string, op string, req interface{}) <-chan interface{} {
 	var wg sync.WaitGroup
 	resCh := make(chan interface{}, len(replicas))
 
@@ -227,6 +236,7 @@ func (rc *RequestCoordinator) readRepair(resList []*storage.GetResponse, key str
 
 	for _, res := range resList {
 		if res.Value.Value != latestValue {
+			logger.Debugf("Initiating read repair for %s: (%s, %s)", res.Node, key, latestValue)
 			go rc.sendRPCRequest(res.Node, PutOp, &storage.PutRequest{
 				Key:   key,
 				Value: latestValue,
