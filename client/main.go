@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/hungys/swimring/util"
 	"github.com/olekukonko/tablewriter"
 )
 
@@ -56,7 +57,7 @@ func main() {
 }
 
 func processCommand(line string) error {
-	tokens := strings.Split(line, " ")
+	tokens := util.SafeSplit(line)
 
 	if len(tokens) == 0 {
 		return nil
