@@ -6,13 +6,18 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"sort"
+	"strconv"
 	"strings"
+
+	"github.com/olekukonko/tablewriter"
 )
 
 const (
 	GetCmd    = "get"
 	PutCmd    = "put"
 	DeleteCmd = "del"
+	StatCmd   = "stat"
 	ExitCmd   = "exit"
 )
 
@@ -64,6 +69,8 @@ func processCommand(line string) error {
 		processPut(tokens)
 	case DeleteCmd:
 		processDelete(tokens)
+	case StatCmd:
+		processStat(tokens)
 	case ExitCmd:
 		os.Exit(0)
 	default:
@@ -116,4 +123,31 @@ func processDelete(tokens []string) {
 	}
 
 	fmt.Println("ok")
+}
+
+func processStat(tokens []string) {
+	nodes, err := client.Stat()
+	if err != nil {
+		fmt.Printf("error: %s\n", err.Error())
+		return
+	}
+
+	var data [][]string
+	sort.Sort(nodes)
+
+	for _, node := range nodes {
+		var n []string
+		n = append(n, node.Address)
+		n = append(n, node.Status)
+		n = append(n, strconv.Itoa(node.KeyCount))
+		data = append(data, n)
+	}
+
+	table := tablewriter.NewWriter(os.Stdout)
+	table.SetHeader([]string{"Address", "Status", "Key Count"})
+
+	for _, d := range data {
+		table.Append(d)
+	}
+	table.Render()
 }

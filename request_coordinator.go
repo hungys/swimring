@@ -6,6 +6,7 @@ import (
 	"net/rpc"
 	"sync"
 
+	"github.com/hungys/swimring/membership"
 	"github.com/hungys/swimring/storage"
 )
 
@@ -28,6 +29,8 @@ const (
 	PutOp = "KVS.Put"
 	// DeleteOp is the name of the service method for Delete.
 	DeleteOp = "KVS.Delete"
+	// StatOp is the name of the service method for Stat.
+	StatOp = "KVS.Stat"
 )
 
 // RequestCoordinator is the coordinator for all the incoming external request.
@@ -63,6 +66,21 @@ type DeleteRequest struct {
 
 // DeleteResponse is the payload of the response of Delete.
 type DeleteResponse struct{}
+
+// StateRequest is the payload of Stat.
+type StateRequest struct{}
+
+// StateResponse is the payload of the response of Stat.
+type StateResponse struct {
+	Nodes []NodeStat
+}
+
+// NodeStat stores the information of a Node
+type NodeStat struct {
+	Address  string
+	Status   string
+	KeyCount int
+}
 
 // NewRequestCoordinator returns a new RequestCoordinator.
 func NewRequestCoordinator(sr *SwimRing) *RequestCoordinator {
@@ -212,6 +230,49 @@ func (rc *RequestCoordinator) Delete(req *DeleteRequest, resp *DeleteResponse) e
 	return errors.New("cannot reach consistency level")
 }
 
+// Stat handles the incoming Stat request.
+func (rc *RequestCoordinator) Stat(req *StateRequest, resp *StateResponse) error {
+	logger.Debug("Coordinating external request Stat()")
+
+	internalReq := &storage.StatRequest{}
+
+	members := rc.sr.node.Members()
+	resCh := make(chan interface{}, len(members))
+	var wg sync.WaitGroup
+
+	for _, member := range members {
+		wg.Add(1)
+
+		go func(member membership.Member) {
+			defer wg.Done()
+
+			stat := NodeStat{
+				Address:  member.Address,
+				Status:   member.Status,
+				KeyCount: 0,
+			}
+
+			res, err := rc.sendRPCRequest(member.Address, StatOp, internalReq)
+			if err == nil {
+				stat.KeyCount = res.(*storage.StatResponse).Count
+			}
+
+			resCh <- stat
+		}(member)
+	}
+
+	go func() {
+		wg.Wait()
+		close(resCh)
+	}()
+
+	for result := range resCh {
+		resp.Nodes = append(resp.Nodes, result.(NodeStat))
+	}
+
+	return nil
+}
+
 func (rc *RequestCoordinator) sendRPCRequests(replicas []string, op string, req interface{}) <-chan interface{} {
 	var wg sync.WaitGroup
 	resCh := make(chan interface{}, len(replicas))
@@ -254,6 +315,8 @@ func (rc *RequestCoordinator) sendRPCRequest(server string, op string, req inter
 		resp = &storage.PutResponse{}
 	case DeleteOp:
 		resp = &storage.DeleteResponse{}
+	case StatOp:
+		resp = &storage.StatResponse{}
 	}
 
 	err = client.Call(op, req, resp)

@@ -84,6 +84,11 @@ func (k *KVStore) Delete(key string) error {
 	return nil
 }
 
+// Count returns the number of entries in local KVS.
+func (k *KVStore) Count() int {
+	return len(k.db)
+}
+
 // RegisterRPCHandlers registers the internal RPC handlers.
 func (k *KVStore) RegisterRPCHandlers(server *rpc.Server) error {
 	server.RegisterName("KVS", k.requestHandlers)

@@ -113,6 +113,11 @@ func (n *Node) Address() string {
 	return n.address
 }
 
+// Members returns all the members in Node's memberlist.
+func (n *Node) Members() []Member {
+	return n.memberlist.Members()
+}
+
 // Start starts the SWIM protocol and all sub-protocols.
 func (n *Node) Start() {
 	n.gossip.Start()

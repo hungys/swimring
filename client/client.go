@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"net/rpc"
+	"strconv"
+	"strings"
 )
 
 const (
@@ -25,6 +27,8 @@ const (
 	PutOp = "SwimRing.Put"
 	// DeleteOp is the name of the service method for Delete.
 	DeleteOp = "SwimRing.Delete"
+	// StatOp is the name of the service method for Stat.
+	StatOp = "SwimRing.Stat"
 )
 
 // SwimringClient is a RPC client for connecting to SwimRing server.
@@ -65,6 +69,24 @@ type DeleteRequest struct {
 
 // DeleteResponse is the payload of the response of Delete.
 type DeleteResponse struct{}
+
+// StateRequest is the payload of Stat.
+type StateRequest struct{}
+
+// StateResponse is the payload of the response of Stat.
+type StateResponse struct {
+	Nodes []NodeStat
+}
+
+// NodeStat stores the information of a Node
+type NodeStat struct {
+	Address  string
+	Status   string
+	KeyCount int
+}
+
+// NodeStats is an array of NodeStat
+type NodeStats []NodeStat
 
 // NewSwimringClient returns a new SwimringClient instance.
 func NewSwimringClient(address string, port int) *SwimringClient {
@@ -158,4 +180,42 @@ func (c *SwimringClient) Delete(key string) error {
 	}
 
 	return nil
+}
+
+// Stat calls the remote Stat method to gather Nodes' information.
+func (c *SwimringClient) Stat() (NodeStats, error) {
+	if c.client == nil {
+		return nil, errors.New("not connected")
+	}
+
+	req := &StateRequest{}
+	resp := &StateResponse{}
+
+	err := c.client.Call(StatOp, req, resp)
+	if err != nil {
+		return nil, err
+	}
+
+	return NodeStats(resp.Nodes), nil
+}
+
+func (ns NodeStats) Len() int {
+	return len(ns)
+}
+
+func (ns NodeStats) Less(i, j int) bool {
+	itokens := strings.Split(ns[i].Address, ":")
+	jtokens := strings.Split(ns[j].Address, ":")
+
+	if itokens[0] != jtokens[0] {
+		return itokens[0] < jtokens[0]
+	}
+
+	iport, _ := strconv.Atoi(itokens[1])
+	jport, _ := strconv.Atoi(jtokens[1])
+	return iport < jport
+}
+
+func (ns NodeStats) Swap(i, j int) {
+	ns[i], ns[j] = ns[j], ns[i]
 }

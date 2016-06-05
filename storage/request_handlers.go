@@ -42,6 +42,15 @@ type DeleteResponse struct {
 	Message string
 }
 
+// StatRequest is the payload of Stat.
+type StatRequest struct{}
+
+// StatResponse is the payload of the response of Stat.
+type StatResponse struct {
+	Ok    bool
+	Count int
+}
+
 // NewRequestHandler returns a new RequestHandlers.
 func NewRequestHandler(kvs *KVStore) *RequestHandlers {
 	rh := &RequestHandlers{
@@ -96,5 +105,15 @@ func (rh *RequestHandlers) Delete(req *DeleteRequest, resp *DeleteResponse) erro
 	}
 
 	resp.Ok = true
+	return nil
+}
+
+// Stat handles the incoming Stat request.
+func (rh *RequestHandlers) Stat(req *StatRequest, resp *StatResponse) error {
+	logger.Info("Handling intrnal request Stat()")
+
+	resp.Ok = true
+	resp.Count = rh.kvs.Count()
+
 	return nil
 }
