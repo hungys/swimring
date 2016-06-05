@@ -11,6 +11,7 @@ import (
 
 var logger = logging.MustGetLogger("storage")
 
+// KVStore is a key-value storage engine.
 type KVStore struct {
 	sync.RWMutex
 	address string
@@ -19,11 +20,13 @@ type KVStore struct {
 	requestHandlers *RequestHandlers
 }
 
+// KVEntry is a storage unit for a value.
 type KVEntry struct {
 	Value     string
 	Timestamp int
 }
 
+// NewKVStore returns a new KVStore instance.
 func NewKVStore(address string) *KVStore {
 	kvs := &KVStore{
 		address: address,
@@ -36,6 +39,7 @@ func NewKVStore(address string) *KVStore {
 	return kvs
 }
 
+// Get returns the KVEntry of the given key.
 func (k *KVStore) Get(key string) (*KVEntry, error) {
 	k.RLock()
 	value, ok := k.db[key]
@@ -48,6 +52,7 @@ func (k *KVStore) Get(key string) (*KVEntry, error) {
 	return value, nil
 }
 
+// Put updates the value for the given key.
 func (k *KVStore) Put(key, value string) error {
 	k.Lock()
 	if _, ok := k.db[key]; !ok {
@@ -62,6 +67,7 @@ func (k *KVStore) Put(key, value string) error {
 	return nil
 }
 
+// Delete removes the entry of the given key.
 func (k *KVStore) Delete(key string) error {
 	k.Lock()
 	_, ok := k.db[key]
@@ -78,6 +84,7 @@ func (k *KVStore) Delete(key string) error {
 	return nil
 }
 
+// RegisterRPCHandlers registers the internal RPC handlers.
 func (k *KVStore) RegisterRPCHandlers(server *rpc.Server) error {
 	server.RegisterName("KVS", k.requestHandlers)
 	logger.Info("Internal KVS request RPC handlers registered")

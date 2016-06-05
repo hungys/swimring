@@ -9,6 +9,8 @@ import (
 
 var logger = logging.MustGetLogger("hashring")
 
+// HashRing stores strings on a consistent hash ring. HashRing internally uses
+// a Red-Black Tree to achieve O(log N) lookup and insertion time.
 type HashRing struct {
 	sync.RWMutex
 
@@ -19,6 +21,7 @@ type HashRing struct {
 	tree      *redBlackTree
 }
 
+// NewHashRing instantiates and returns a new HashRing.
 func NewHashRing(hashfunc func([]byte) uint32, replicaPoints int) *HashRing {
 	r := &HashRing{
 		replicaPoints: replicaPoints,
@@ -32,6 +35,7 @@ func NewHashRing(hashfunc func([]byte) uint32, replicaPoints int) *HashRing {
 	return r
 }
 
+// AddServer adds a server and its replicas onto the HashRing.
 func (r *HashRing) AddServer(address string) bool {
 	r.Lock()
 	ok := r.addServerNoLock(address)
@@ -59,6 +63,7 @@ func (r *HashRing) addVirtualNodesNoLock(server string) {
 	}
 }
 
+// RemoveServer removes a server and its replicas from the HashRing.
 func (r *HashRing) RemoveServer(address string) bool {
 	r.Lock()
 	ok := r.removeServerNoLock(address)
@@ -86,6 +91,8 @@ func (r *HashRing) removeVirtualNodesNoLock(server string) {
 	}
 }
 
+// AddRemoveServers adds and removes servers and all replicas associated to those
+// servers to and from the HashRing. Returns whether the HashRing has changed.
 func (r *HashRing) AddRemoveServers(add []string, remove []string) bool {
 	r.Lock()
 	result := r.addRemoveServersNoLock(add, remove)
@@ -119,6 +126,8 @@ func (r *HashRing) copyServersNoLock() []string {
 	return servers
 }
 
+// Lookup returns the owner of the given key and whether the HashRing contains
+// the key at all.
 func (r *HashRing) Lookup(key string) (string, bool) {
 	strs := r.LookupN(key, 1)
 	if len(strs) == 0 {
@@ -129,6 +138,9 @@ func (r *HashRing) Lookup(key string) (string, bool) {
 	return strs[0], true
 }
 
+// LookupN returns the N servers that own the given key. Duplicates in the form
+// of virtual nodes are skipped to maintain a list of unique servers. If there
+// are less servers than N, we simply return all existing servers.
 func (r *HashRing) LookupN(key string, n int) []string {
 	r.RLock()
 	servers := r.lookupNNoLock(key, n)

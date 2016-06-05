@@ -26,6 +26,8 @@ func newStateTransitions(n *Node) *stateTransitions {
 	}
 }
 
+// ScheduleSuspectToFaulty starts the suspect timer. After the Suspect timeout,
+// the node will be marked as a faulty node.
 func (s *stateTransitions) ScheduleSuspectToFaulty(change Change) {
 	s.Lock()
 	s.schedule(change, Suspect, s.node.suspectTimeout, func() {
@@ -62,6 +64,7 @@ func (s *stateTransitions) schedule(change Change, state string, timeout time.Du
 	}
 }
 
+// Cancel cancels the scheduled transition for the change.
 func (s *stateTransitions) Cancel(change Change) {
 	s.Lock()
 
@@ -73,6 +76,7 @@ func (s *stateTransitions) Cancel(change Change) {
 	s.Unlock()
 }
 
+// Enable enables state transition controller.
 func (s *stateTransitions) Enable() {
 	s.Lock()
 	s.enabled = true
@@ -81,9 +85,16 @@ func (s *stateTransitions) Enable() {
 	logger.Notice("State transitions enabled")
 }
 
+// Disable cancels all scheduled state transitions and disables the state transition controller.
 func (s *stateTransitions) Disable() {
 	s.Lock()
+
 	s.enabled = false
+	for address, timer := range s.timers {
+		timer.Stop()
+		delete(s.timers, address)
+	}
+
 	s.Unlock()
 
 	logger.Notice("State transitions disabled")

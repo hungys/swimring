@@ -56,6 +56,8 @@ func newMemberlistIter(m *memberlist) *memberlistIter {
 	return iter
 }
 
+// Next returns the next pingable member in the member list, if it
+// visits all members but none are pingable returns nil, false.
 func (i *memberlistIter) Next() (*Member, bool) {
 	numOfMembers := i.m.NumMembers()
 	visited := make(map[string]bool)
@@ -80,6 +82,7 @@ func (i *memberlistIter) Next() (*Member, bool) {
 	return nil, false
 }
 
+// Checksum returns the checksum of the memberlist.
 func (m *memberlist) Checksum() uint32 {
 	m.members.Lock()
 	checksum := m.members.checksum
@@ -88,6 +91,7 @@ func (m *memberlist) Checksum() uint32 {
 	return checksum
 }
 
+// ComputeChecksum computes the checksum of the memberlist.
 func (m *memberlist) ComputeChecksum() {
 	m.members.Lock()
 	checksum := farm.Fingerprint32([]byte(m.genChecksumString()))
@@ -114,6 +118,7 @@ func (m *memberlist) genChecksumString() string {
 	return buffer.String()
 }
 
+// Member returns the member at a specific address.
 func (m *memberlist) Member(address string) (*Member, bool) {
 	m.members.RLock()
 	member, ok := m.members.byAddress[address]
@@ -122,6 +127,8 @@ func (m *memberlist) Member(address string) (*Member, bool) {
 	return member, ok
 }
 
+// MemberClient returns the RPC client of the member at a specific address,
+// and it will dial to RPC server if client is not in rpcClients map.
 func (m *memberlist) MemberClient(address string) (*rpc.Client, error) {
 	m.members.Lock()
 	defer m.members.Unlock()
@@ -139,12 +146,14 @@ func (m *memberlist) MemberClient(address string) (*rpc.Client, error) {
 	return client, err
 }
 
+// CloseMemberClient removes the client instance of the member at a specific address.
 func (m *memberlist) CloseMemberClient(address string) {
 	m.members.Lock()
 	delete(m.members.rpcClients, address)
 	m.members.Unlock()
 }
 
+// MemberAt returns the i-th member in the list.
 func (m *memberlist) MemberAt(i int) *Member {
 	m.members.RLock()
 	member := m.members.list[i]
@@ -153,6 +162,7 @@ func (m *memberlist) MemberAt(i int) *Member {
 	return member
 }
 
+// NumMembers returns the number of members in the memberlist.
 func (m *memberlist) NumMembers() int {
 	m.members.RLock()
 	n := len(m.members.list)
@@ -161,6 +171,7 @@ func (m *memberlist) NumMembers() int {
 	return n
 }
 
+// NumPingableMembers returns the number of pingable members in the memberlist.
 func (m *memberlist) NumPingableMembers() (n int) {
 	m.members.Lock()
 	for _, member := range m.members.list {
@@ -173,6 +184,7 @@ func (m *memberlist) NumPingableMembers() (n int) {
 	return
 }
 
+// Members returns all the members in the memberlist.
 func (m *memberlist) Members() (members []Member) {
 	m.members.RLock()
 	for _, member := range m.members.list {
@@ -183,10 +195,12 @@ func (m *memberlist) Members() (members []Member) {
 	return
 }
 
+// Pingable returns whether or not a member is pingable.
 func (m *memberlist) Pingable(member Member) bool {
 	return member.Address != m.local.Address && member.isReachable()
 }
 
+// RandomPingableMembers returns the number of pingable members in the memberlist.
 func (m *memberlist) RandomPingableMembers(n int, excluding map[string]bool) []*Member {
 	var members []*Member
 
@@ -206,22 +220,31 @@ func (m *memberlist) RandomPingableMembers(n int, excluding map[string]bool) []*
 	return members[:n]
 }
 
+// Reincarnate sets the status of the node to Alive and updates the incarnation
+// number. It adds the change to the disseminator as well.
 func (m *memberlist) Reincarnate() []Change {
 	return m.MarkAlive(m.node.Address(), time.Now().Unix())
 }
 
+// MarkAlive sets the status of the node at specific address to Alive and
+// updates the incarnation number. It adds the change to the disseminator as well.
 func (m *memberlist) MarkAlive(address string, incarnation int64) []Change {
 	return m.MakeChange(address, incarnation, Alive)
 }
 
+// MarkSuspect sets the status of the node at specific address to Suspect and
+// updates the incarnation number. It adds the change to the disseminator as well.
 func (m *memberlist) MarkSuspect(address string, incarnation int64) []Change {
 	return m.MakeChange(address, incarnation, Suspect)
 }
 
+// MarkFaulty sets the status of the node at specific address to Faulty and
+// updates the incarnation number. It adds the change to the disseminator as well.
 func (m *memberlist) MarkFaulty(address string, incarnation int64) []Change {
 	return m.MakeChange(address, incarnation, Faulty)
 }
 
+// MakeChange makes a change to the memberlist.
 func (m *memberlist) MakeChange(address string, incarnation int64, status string) []Change {
 	if m.local == nil {
 		m.local = &Member{
@@ -242,6 +265,7 @@ func (m *memberlist) MakeChange(address string, incarnation int64, status string
 	return changes
 }
 
+// Update updates the memberlist with the slice of changes, applying selectively.
 func (m *memberlist) Update(changes []Change) (applied []Change) {
 	if m.node.Stopped() || len(changes) == 0 {
 		return nil
@@ -295,6 +319,11 @@ func (m *memberlist) Update(changes []Change) (applied []Change) {
 	return applied
 }
 
+// AddJoinList adds the list to the membership with the Update function.
+// However, as a side effect, Update adds changes to the disseminator as well.
+// Since we don't want to disseminate the potentially very large join lists,
+// we clear all the changes from the disseminator, except for the one change
+// that refers to the make-alive of this node.
 func (m *memberlist) AddJoinList(list []Change) {
 	applied := m.Update(list)
 	for _, member := range applied {
@@ -344,6 +373,7 @@ func (m *memberlist) applyChange(change Change) bool {
 	return true
 }
 
+// Shuffle shuffles the memberlist.
 func (m *memberlist) Shuffle() {
 	m.members.Lock()
 	m.members.list = shuffle(m.members.list)

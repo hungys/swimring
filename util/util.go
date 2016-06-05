@@ -7,6 +7,8 @@ import (
 
 const loopbackIP = "127.0.0.1"
 
+// SelectIntOpt takes an option and a default value and returns the default value if
+// the option is equal to zero, and the option otherwise.
 func SelectIntOpt(opt, def int) int {
 	if opt == 0 {
 		return def
@@ -14,6 +16,8 @@ func SelectIntOpt(opt, def int) int {
 	return opt
 }
 
+// SelectDurationOpt takes an option and a default value and returns the default value if
+// the option is equal to zero, and the option otherwise.
 func SelectDurationOpt(opt, def time.Duration) time.Duration {
 	if opt == time.Duration(0) {
 		return def
@@ -21,6 +25,7 @@ func SelectDurationOpt(opt, def time.Duration) time.Duration {
 	return opt
 }
 
+// GetLocalIP returns the local IP address.
 func GetLocalIP() string {
 	addrs, err := net.InterfaceAddrs()
 	if err != nil {

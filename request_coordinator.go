@@ -10,41 +10,61 @@ import (
 )
 
 const (
-	ONE      = "ONE"
-	QUORUM   = "QUORUM"
-	ALL      = "ALL"
-	GetOp    = "KVS.Get"
-	PutOp    = "KVS.Put"
+	// ONE is the weakest consistency level.
+	// For read request, returns value when the first response arrived.
+	// For write request, returns when the first ACK received.
+	ONE = "ONE"
+	// QUORUM is the moderate consistency level.
+	// For read request, returns value when the quorum set of replicas all responded.
+	// For write request, returns when the quorum set of replicas all responded ACKs.
+	QUORUM = "QUORUM"
+	// ALL is the strongest consistency level.
+	// For read request, returns value when all replicas responded.
+	// For write request, returns when all replicas all responded ACKs.
+	ALL = "ALL"
+	// GetOp is the name of the service method for Get.
+	GetOp = "KVS.Get"
+	// PutOp is the name of the service method for Put.
+	PutOp = "KVS.Put"
+	// DeleteOp is the name of the service method for Delete.
 	DeleteOp = "KVS.Delete"
 )
 
+// RequestCoordinator is the coordinator for all the incoming external request.
 type RequestCoordinator struct {
 	sr *SwimRing
 }
 
+// GetRequest is the payload of Get.
 type GetRequest struct {
 	Level string
 	Key   string
 }
 
+// GetResponse is the payload of the response of Get.
 type GetResponse struct {
 	Key, Value string
 }
 
+// PutRequest is the payload of Put.
 type PutRequest struct {
 	Level      string
 	Key, Value string
 }
 
+// PutResponse is the payload of the response of Put.
 type PutResponse struct{}
 
+// DeleteRequest is the payload of Delete.
 type DeleteRequest struct {
 	Level string
 	Key   string
 }
 
+// DeleteResponse is the payload of the response of Delete.
 type DeleteResponse struct{}
 
+// NewRequestCoordinator returns a new RequestCoordinator.
 func NewRequestCoordinator(sr *SwimRing) *RequestCoordinator {
 	rc := &RequestCoordinator{
 		sr: sr,
@@ -53,6 +73,9 @@ func NewRequestCoordinator(sr *SwimRing) *RequestCoordinator {
 	return rc
 }
 
+// Get handles the incoming Get request. It first looks up for the owner replicas
+// of the given key, forwards request to all replicas and deals with them according to
+// consistency level. Read repair is initiated if necessary.
 func (rc *RequestCoordinator) Get(req *GetRequest, resp *GetResponse) error {
 	logger.Debugf("Coordinating external request Get(%s, %s)", req.Key, req.Level)
 
@@ -106,6 +129,9 @@ func (rc *RequestCoordinator) Get(req *GetRequest, resp *GetResponse) error {
 	return errors.New("cannot reach consistency level")
 }
 
+// Put handles the incoming Put request. It first looks up for the owner replicas
+// of the given key, forwards request to all replicas and deals with them according to
+// consistency level.
 func (rc *RequestCoordinator) Put(req *PutRequest, resp *PutResponse) error {
 	logger.Debugf("Coordinating external request Put(%s, %s, %s)", req.Key, req.Value, req.Level)
 
@@ -145,6 +171,9 @@ func (rc *RequestCoordinator) Put(req *PutRequest, resp *PutResponse) error {
 	return errors.New("cannot reach consistency level")
 }
 
+// Delete handles the incoming Delete request. It first looks up for the owner replicas
+// of the given key, forwards request to all replicas and deals with them according to
+// consistency level.
 func (rc *RequestCoordinator) Delete(req *DeleteRequest, resp *DeleteResponse) error {
 	logger.Debugf("Coordinating external request Delete(%s, %s)", req.Key, req.Level)
 

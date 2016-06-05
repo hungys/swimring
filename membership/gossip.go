@@ -34,6 +34,7 @@ func newGossip(node *Node, minProtocolPeriod time.Duration) *gossip {
 	return gossip
 }
 
+// Stopped returns whether or not the gossip sub-protocol is stopped.
 func (g *gossip) Stopped() bool {
 	g.status.RLock()
 	stopped := g.status.stopped
@@ -42,12 +43,14 @@ func (g *gossip) Stopped() bool {
 	return stopped
 }
 
+// SetStopped sets the gossip sub-protocol to stopped or not stopped.
 func (g *gossip) SetStopped(stopped bool) {
 	g.status.Lock()
 	g.status.stopped = stopped
 	g.status.Unlock()
 }
 
+// Start start the gossip protocol.
 func (g *gossip) Start() {
 	if !g.Stopped() {
 		return
@@ -59,6 +62,7 @@ func (g *gossip) Start() {
 	logger.Notice("Gossip protocol started")
 }
 
+// Stop start the gossip protocol.
 func (g *gossip) Stop() {
 	if g.Stopped() {
 		return
@@ -69,10 +73,12 @@ func (g *gossip) Stop() {
 	logger.Notice("Gossip protocol stopped")
 }
 
+// ProtocolPeriod run a gossip protocol period.
 func (g *gossip) ProtocolPeriod() {
 	g.node.pingNextMember()
 }
 
+// RunProtocolPeriodLoop run the gossip protocol period loop.
 func (g *gossip) RunProtocolPeriodLoop() {
 	go func() {
 		for !g.Stopped() {

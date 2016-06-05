@@ -1,13 +1,16 @@
 package storage
 
+// RequestHandlers defines a set of RPC handlers for internal KVS request.
 type RequestHandlers struct {
 	kvs *KVStore
 }
 
+// GetRequest is the payload of Get.
 type GetRequest struct {
 	Key string
 }
 
+// GetResponse is the payload of the response of Get.
 type GetResponse struct {
 	Ok      bool
 	Message string
@@ -17,24 +20,29 @@ type GetResponse struct {
 	Value KVEntry
 }
 
+// PutRequest is the payload of Put.
 type PutRequest struct {
 	Key, Value string
 }
 
+// PutResponse is the payload of the response of Put.
 type PutResponse struct {
 	Ok      bool
 	Message string
 }
 
+// DeleteRequest is the payload of Delete.
 type DeleteRequest struct {
 	Key string
 }
 
+// DeleteResponse is the payload of the response of Delete.
 type DeleteResponse struct {
 	Ok      bool
 	Message string
 }
 
+// NewRequestHandler returns a new RequestHandlers.
 func NewRequestHandler(kvs *KVStore) *RequestHandlers {
 	rh := &RequestHandlers{
 		kvs: kvs,
@@ -43,6 +51,7 @@ func NewRequestHandler(kvs *KVStore) *RequestHandlers {
 	return rh
 }
 
+// Get handles the incoming Get request.
 func (rh *RequestHandlers) Get(req *GetRequest, resp *GetResponse) error {
 	logger.Infof("Handling intrnal request Get(%s)", req.Key)
 
@@ -60,6 +69,7 @@ func (rh *RequestHandlers) Get(req *GetRequest, resp *GetResponse) error {
 	return nil
 }
 
+// Put handles the incoming Put request.
 func (rh *RequestHandlers) Put(req *PutRequest, resp *PutResponse) error {
 	logger.Infof("Handling intrnal request Put(%s, %s)", req.Key, req.Value)
 
@@ -74,6 +84,7 @@ func (rh *RequestHandlers) Put(req *PutRequest, resp *PutResponse) error {
 	return nil
 }
 
+// Delete handles the incoming Delete request.
 func (rh *RequestHandlers) Delete(req *DeleteRequest, resp *DeleteResponse) error {
 	logger.Infof("Handling intrnal request Delete(%s)", req.Key)
 

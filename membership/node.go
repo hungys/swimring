@@ -13,6 +13,7 @@ import (
 var logger = logging.MustGetLogger("membership")
 
 var (
+	// ErrNodeNotReady is returned when a remote request is being handled while the node is not yet ready
 	ErrNodeNotReady = errors.New("node is not ready to handle requests")
 )
 
@@ -20,6 +21,7 @@ type changeHandler interface {
 	HandleChanges(changes []Change)
 }
 
+// Options is a configuration struct passed into NewNode constructor.
 type Options struct {
 	JoinTimeout, SuspectTimeout, PingTimeout, PingRequestTimeout, MinProtocolPeriod time.Duration
 
@@ -57,6 +59,7 @@ func mergeDefaultOptions(opts *Options) *Options {
 	return opts
 }
 
+// Node is a SWIM member.
 type Node struct {
 	address string
 
@@ -79,6 +82,7 @@ type Node struct {
 	bootstrapNodes  []string
 }
 
+// NewNode returns a new SWIM node.
 func NewNode(swimring changeHandler, address string, opts *Options) *Node {
 	opts = mergeDefaultOptions(opts)
 
@@ -104,10 +108,12 @@ func NewNode(swimring changeHandler, address string, opts *Options) *Node {
 	return node
 }
 
+// Address returns the address of the SWIM node.
 func (n *Node) Address() string {
 	return n.address
 }
 
+// Start starts the SWIM protocol and all sub-protocols.
 func (n *Node) Start() {
 	n.gossip.Start()
 	n.stateTransitions.Enable()
@@ -119,6 +125,7 @@ func (n *Node) Start() {
 	logger.Noticef("Local node %s started", n.Address())
 }
 
+// Stop stops the SWIM protocol and all sub-protocols.
 func (n *Node) Stop() {
 	n.gossip.Stop()
 	n.stateTransitions.Disable()
@@ -130,6 +137,7 @@ func (n *Node) Stop() {
 	logger.Noticef("Local node %s stopped", n.Address())
 }
 
+// Stopped returns whether or not the SWIM protocol is currently stopped.
 func (n *Node) Stopped() bool {
 	n.status.RLock()
 	stopped := n.status.stopped
@@ -138,6 +146,7 @@ func (n *Node) Stopped() bool {
 	return stopped
 }
 
+// Destroy stops the SWIM protocol and all sub-protocols.
 func (n *Node) Destroy() {
 	n.status.Lock()
 	if n.status.destroyed {
@@ -152,6 +161,7 @@ func (n *Node) Destroy() {
 	logger.Noticef("Local node %s destroyed", n.Address())
 }
 
+// Destroyed returns whether or not the node has been destroyed.
 func (n *Node) Destroyed() bool {
 	n.status.RLock()
 	destroyed := n.status.destroyed
@@ -160,6 +170,7 @@ func (n *Node) Destroyed() bool {
 	return destroyed
 }
 
+// Ready returns whether or not the node has bootstrapped and is ready for use.
 func (n *Node) Ready() bool {
 	n.status.RLock()
 	ready := n.status.ready
@@ -168,6 +179,7 @@ func (n *Node) Ready() bool {
 	return ready
 }
 
+// Incarnation returns the incarnation number of the Node.
 func (n *Node) Incarnation() int64 {
 	if n.memberlist != nil && n.memberlist.local != nil {
 		n.memberlist.local.RLock()
@@ -178,6 +190,7 @@ func (n *Node) Incarnation() int64 {
 	return -1
 }
 
+// Bootstrap joins the Node to a cluster.
 func (n *Node) Bootstrap() ([]string, error) {
 	logger.Notice("Bootstrapping local node...")
 
@@ -192,6 +205,7 @@ func (n *Node) Bootstrap() ([]string, error) {
 	return nodesJoined, nil
 }
 
+// RegisterRPCHandlers registers the RPC handlers for internal SWIM protocol.
 func (n *Node) RegisterRPCHandlers(server *rpc.Server) error {
 	server.RegisterName("Protocol", n.protocolHandlers)
 	logger.Info("SWIM protocol RPC handlers registered")

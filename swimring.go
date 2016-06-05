@@ -32,6 +32,8 @@ type configuration struct {
 	BootstrapNodes []string `yaml:"BootstrapNodes"`
 }
 
+// SwimRing is a local key-value store replica consisting of a SWIM node,
+// a consistent hash ring and a storage engine.
 type SwimRing struct {
 	config *configuration
 
@@ -53,6 +55,7 @@ const (
 	destroyed
 )
 
+// NewSwimRing returns a new SwimRing instance.
 func NewSwimRing(config *configuration) *SwimRing {
 	sr := &SwimRing{
 		config: config,
@@ -84,6 +87,7 @@ func (sr *SwimRing) init() error {
 	return nil
 }
 
+// Status returns the status of the current SwimRing instance.
 func (sr *SwimRing) Status() status {
 	sr.statusMutex.RLock()
 	r := sr.status
@@ -97,6 +101,12 @@ func (sr *SwimRing) setStatus(s status) {
 	sr.statusMutex.Unlock()
 }
 
+// Bootstrap starts communication for this SwimRing instance.
+//
+// It first checks if the instance is initialized, then registers RPC handlers,
+// and calls Bootstap method of Node instance.
+//
+// After all the operations, the SwimRing instance enters ready state.
 func (sr *SwimRing) Bootstrap() ([]string, error) {
 	if sr.Status() < initialized {
 		err := sr.init()
@@ -117,6 +127,8 @@ func (sr *SwimRing) Bootstrap() ([]string, error) {
 	return joined, nil
 }
 
+// HandleChanges reveives the change events emitted from memberlist,
+// then add/remove servers to/from hashring correspondingly.
 func (sr *SwimRing) HandleChanges(changes []membership.Change) {
 	var serversToAdd, serversToRemove []string
 
