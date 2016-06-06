@@ -8,9 +8,4 @@ MinProtocolPeriod: 200
 PingRequestSize: 3
 VirtualNodeSize: 5
 KVSReplicaPoints: 3
-BootstrapNodes:
-    - :7001
-    - :8001
-    - :9001
-    - :10001
-    - :11001
+BootstrapNodes: [":7001"]
