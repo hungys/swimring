@@ -328,7 +328,8 @@ func (rc *RequestCoordinator) sendRPCRequest(server string, op string, req inter
 
 	select {
 	case err = <-errCh:
-	case <-time.After(time.Duration(rc.sr.config.PingTimeout) * time.Millisecond):
+		logger.Debugf("Return from RPC call to %s", server)
+	case <-time.After(1500 * time.Millisecond):
 		logger.Warningf("RPC request to %s timeout", server)
 		err = errors.New("request timeout")
 	}
