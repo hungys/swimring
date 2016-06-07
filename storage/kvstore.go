@@ -148,7 +148,7 @@ func (k *KVStore) flushToDumpFile() error {
 
 func (k *KVStore) repairDB() {
 	files, _ := ioutil.ReadDir("./")
-	matchpattern := ".*(dump|commit).log"
+	matchpattern := strings.Replace(k.address, ":", "_", -1) + "_(dump|commit).log"
 
 	logger.Notice("Trying to repair key value storage...")
 

@@ -125,6 +125,7 @@ func (rc *RequestCoordinator) Get(req *GetRequest, resp *GetResponse) error {
 			}
 
 			if res.Ok && res.Value.Timestamp > latestTimestamp {
+				latestTimestamp = res.Value.Timestamp
 				latestValue = res.Value.Value
 			}
 
@@ -379,6 +380,7 @@ func (rc *RequestCoordinator) readRepair(resList []*storage.GetResponse, key str
 			}
 
 			if res.Ok && res.Value.Timestamp > latestTimestamp {
+				latestTimestamp = res.Value.Timestamp
 				latestValue = res.Value.Value
 			}
 		case error:
