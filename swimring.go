@@ -137,7 +137,7 @@ func (sr *SwimRing) HandleChanges(changes []membership.Change) {
 		case membership.Alive, membership.Suspect:
 			serversToAdd = append(serversToAdd, change.Address)
 		case membership.Faulty:
-			serversToRemove = append(serversToRemove, change.Address)
+			// serversToRemove = append(serversToRemove, change.Address)
 		}
 	}
 

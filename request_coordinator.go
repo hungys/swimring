@@ -344,7 +344,7 @@ func (rc *RequestCoordinator) numOfRequiredACK(level string) int {
 	case ONE:
 		return 1
 	case QUORUM:
-		return int(math.Floor(float64(rc.sr.config.KVSReplicaPoints) / 2))
+		return int(math.Floor(float64(rc.sr.config.KVSReplicaPoints)/2)) + 1
 	case ALL:
 		return rc.sr.config.KVSReplicaPoints
 	}
