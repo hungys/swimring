@@ -31,8 +31,8 @@ func main() {
 
 	flag.StringVar(&serverAddr, "host", "127.0.0.1", "address of server node")
 	flag.IntVar(&serverPort, "port", 7000, "port number of server node")
-	flag.StringVar(&readLevel, "rl", ALL, "read consistency level")
-	flag.StringVar(&writeLevel, "wl", ALL, "write consistency level")
+	flag.StringVar(&readLevel, "rl", QUORUM, "read consistency level")
+	flag.StringVar(&writeLevel, "wl", QUORUM, "write consistency level")
 	flag.Parse()
 
 	client = NewSwimringClient(serverAddr, serverPort)

@@ -253,6 +253,11 @@ func (rc *RequestCoordinator) Stat(req *StateRequest, resp *StateResponse) error
 				KeyCount: 0,
 			}
 
+			if member.Status == membership.Faulty {
+				resCh <- stat
+				return
+			}
+
 			res, err := rc.sendRPCRequest(member.Address, StatOp, internalReq)
 			if err == nil {
 				stat.KeyCount = res.(*storage.StatResponse).Count
@@ -305,6 +310,7 @@ func (rc *RequestCoordinator) sendRPCRequests(replicas []string, op string, req 
 func (rc *RequestCoordinator) sendRPCRequest(server string, op string, req interface{}) (interface{}, error) {
 	client, err := rpc.Dial("tcp", server)
 	if err != nil {
+		logger.Errorf("Fail to dail remote RPC server: %s", server)
 		return nil, err
 	}
 
@@ -328,14 +334,17 @@ func (rc *RequestCoordinator) sendRPCRequest(server string, op string, req inter
 
 	select {
 	case err = <-errCh:
-		logger.Debugf("Return from RPC call to %s", server)
+		if err != nil {
+			logger.Errorf("RPC %s request to %s: %s", op, server, err.Error())
+		} else {
+			logger.Infof("RPC %s request to %s: ok", op, server)
+		}
 	case <-time.After(1500 * time.Millisecond):
-		logger.Warningf("RPC request to %s timeout", server)
+		logger.Warningf("RPC %s request to %s: timeout", op, server)
 		err = errors.New("request timeout")
 	}
 
 	if err != nil {
-		logger.Errorf("RPC request to %s error: %s", server, err.Error())
 		return nil, err
 	}
 
