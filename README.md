@@ -50,7 +50,7 @@ To launch a node, please first check `config.yml` is configured correctly, and r
 (term1) $ ./swimring
 ```
 
-This command wil load configurations from `config.yml`, including RPC listen port, bootstrap seeds, timeout, and **replication factor** (Make sure the value must be no more than total number of nodes in the cluster)...
+This command will load configurations from `config.yml`, including RPC listen port, bootstrap seeds, timeout, and **replication factor** (Make sure the value must be no more than total number of nodes in the cluster)...
 
 For testing purpose, you can form a cluster locally, and you can set command line flags to specify external and internal RPC port manually,
 
@@ -69,7 +69,6 @@ To use client program,
 ```bash
 $ cd client
 $ go build
-$ ./client
 ```
 
 By default, it will connect to port 7000 (Node 1 in this example), and both read consistency level and write consistency level are set to *QUORUM*. See `./client -h` for more custom options,
@@ -88,6 +87,28 @@ Usage of ./client:
 ```
 
 Now you are able to use `get <key>`, `put <key> <value>`, `del <key>` to operate on databases. To check current status of the cluster, simply use `stat` command.
+
+```
+$ ./client
+connected to 127.0.0.1:7000
+> get 1
+error: key not found
+> put 1 1
+ok
+> get 1
+1
+> stat
++--------------------+--------+-----------+
+|      ADDRESS       | STATUS | KEY COUNT |
++--------------------+--------+-----------+
+| 192.168.1.63:7001  | alive  |         1 |
+| 192.168.1.63:8001  | alive  |         0 |
+| 192.168.1.63:9001  | alive  |         0 |
+| 192.168.1.63:10001 | alive  |         1 |
+| 192.168.1.63:11001 | alive  |         0 |
+| 192.168.1.63:12001 | alive  |         1 |
++--------------------+--------+-----------+
+```
 
 ## Docker container
 
