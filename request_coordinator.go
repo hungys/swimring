@@ -108,7 +108,7 @@ func (rc *RequestCoordinator) Get(req *GetRequest, resp *GetResponse) error {
 	ackNeed := rc.numOfRequiredACK(req.Level)
 	ackReceived := 0
 	ackOk := 0
-	latestTimestamp := 0
+	latestTimestamp := int64(0)
 	latestValue := ""
 
 	var resList []*storage.GetResponse
@@ -340,7 +340,7 @@ func (rc *RequestCoordinator) numOfRequiredACK(level string) int {
 	return rc.sr.config.KVSReplicaPoints
 }
 
-func (rc *RequestCoordinator) readRepair(resList []*storage.GetResponse, key string, value string, timestamp int, okCount int, resCh <-chan interface{}) {
+func (rc *RequestCoordinator) readRepair(resList []*storage.GetResponse, key string, value string, timestamp int64, okCount int, resCh <-chan interface{}) {
 	latestTimestamp := timestamp
 	latestValue := value
 	ackOk := okCount

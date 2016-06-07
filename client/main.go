@@ -50,7 +50,7 @@ func main() {
 	for {
 		fmt.Print("> ")
 		command, _ := reader.ReadString('\n')
-		if err := processCommand(strings.Trim(command, " \n")); err != nil {
+		if err := processCommand(strings.Trim(command, " \r\n")); err != nil {
 			fmt.Println(err.Error())
 		}
 	}
