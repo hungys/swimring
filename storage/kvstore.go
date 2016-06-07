@@ -3,12 +3,12 @@ package storage
 import (
 	"bufio"
 	"errors"
-	"fmt"
 	"io/ioutil"
 	"net/rpc"
 	"os"
 	"regexp"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -17,22 +17,26 @@ import (
 
 var logger = logging.MustGetLogger("storage")
 
+// KVStore is a key-value storage engine.
 type KVStore struct {
 	sync.RWMutex
-	address string
-	db      map[string]*KVEntry
+	address  string
+	memtable map[string]*KVEntry
 
 	requestHandlers *RequestHandlers
 
+	commitLogName, dumpFileName       string
 	mapSize, boundarySize, dumpsIndex int
 }
 
+// KVEntry is a storage unit for a value.
 type KVEntry struct {
 	Value     string
 	Timestamp int64
 	Exist     int
 }
 
+// NewKVStore returns a new KVStore instance.
 func NewKVStore(address string) *KVStore {
 	kvs := &KVStore{
 		address:      address,
@@ -40,22 +44,27 @@ func NewKVStore(address string) *KVStore {
 		boundarySize: 128,
 		dumpsIndex:   1,
 	}
-	kvs.db = make(map[string]*KVEntry)
-	logfileName := "commitlog.txt"
-	if _, err := os.Stat(logfileName); os.IsNotExist(err) {
-		os.Create(logfileName)
-	}
+	kvs.memtable = make(map[string]*KVEntry)
+	kvs.commitLogName = strings.Replace(address, ":", "_", -1) + "_commit.log"
+	kvs.dumpFileName = strings.Replace(address, ":", "_", -1) + "_dump.log"
 
-	go kvs.dumpsDisk()
 	requestHandlers := NewRequestHandler(kvs)
 	kvs.requestHandlers = requestHandlers
-	kvs.RepairDB()
+
+	if _, err := os.Stat(kvs.commitLogName); os.IsNotExist(err) {
+		os.Create(kvs.commitLogName)
+	}
+
+	kvs.repairDB()
+	go kvs.flushToDumpFile()
+
 	return kvs
 }
 
+// Get returns the KVEntry of the given key.
 func (k *KVStore) Get(key string) (*KVEntry, error) {
 	k.Lock()
-	value, ok := k.db[key]
+	value, ok := k.memtable[key]
 	k.Unlock()
 
 	if !ok || value.Exist == 0 {
@@ -64,68 +73,85 @@ func (k *KVStore) Get(key string) (*KVEntry, error) {
 	return value, nil
 }
 
+// Put updates the value for the given key.
 func (k *KVStore) Put(key, value string) error {
-	tmpKVEntry := KVEntry{Value: value, Timestamp: time.Now().UnixNano(), Exist: 1}
+	entry := KVEntry{Value: value, Timestamp: time.Now().UnixNano(), Exist: 1}
+
 	k.Lock()
-	k.WriteLog(key, &tmpKVEntry)
-	k.db[key] = &tmpKVEntry
+	k.appendToCommitLog(key, &entry)
+	k.memtable[key] = &entry
 	k.Unlock()
 
-	logger.Infof("Key-value pair (%s, %s) updated", key, value)
+	logger.Infof("Key-value pair (%s, %s) updated to memtable", key, value)
 
 	return nil
 }
 
+// Delete removes the entry of the given key.
 func (k *KVStore) Delete(key string) error {
+	value, _ := k.Get(key)
 
-	tmp, _ := k.Get(key)
-
-	if tmp == nil {
+	if value == nil {
 		return errors.New("key not found")
 	}
-	tmp = &KVEntry{Value: "", Timestamp: time.Now().UnixNano(), Exist: 0}
+	value = &KVEntry{Value: "", Timestamp: time.Now().UnixNano(), Exist: 0}
+
 	k.Lock()
-	k.WriteLog(key, tmp)
-	k.db[key] = tmp
+	k.appendToCommitLog(key, value)
+	k.memtable[key] = value
 	k.Unlock()
+
 	return nil
 }
 
+// Count returns the number of entries in local KVS.
+func (k *KVStore) Count() int {
+	return len(k.memtable)
+}
+
+// RegisterRPCHandlers registers the internal RPC handlers.
 func (k *KVStore) RegisterRPCHandlers(server *rpc.Server) error {
 	server.RegisterName("KVS", k.requestHandlers)
 	logger.Info("Internal KVS request RPC handlers registered")
 	return nil
 }
 
-func (k *KVStore) WriteLog(key string, value *KVEntry) error {
-	logfileName := "commitlog.txt"
-	fLogfile, ok := os.OpenFile(logfileName, os.O_APPEND, 0644)
-	if ok != nil {
-		fmt.Println(ok)
+func (k *KVStore) appendToCommitLog(key string, entry *KVEntry) error {
+	fLogfile, err := os.OpenFile(k.commitLogName, os.O_APPEND|os.O_WRONLY, 0644)
+	if err != nil {
+		logger.Error(err.Error())
+		return err
 	}
-	k.writeKeyValueToFile(fLogfile, key, value)
+
+	k.writeKeyValueToFile(fLogfile, key, entry)
+	logger.Infof("Key-value pair (%s, %s) appended to commit log", key, entry.Value)
+
 	return nil
 }
 
-func (k *KVStore) dumpsDisk() error {
+func (k *KVStore) flushToDumpFile() error {
 	for {
 		time.Sleep(30 * time.Second)
+
 		k.Lock()
-		dumpsFileName := "dump.txt"
-		f, _ := os.Create(dumpsFileName)
-		for key, value := range k.db {
+		f, _ := os.Create(k.dumpFileName)
+		for key, value := range k.memtable {
 			k.writeKeyValueToFile(f, key, value)
 		}
-		logfileName := "commitlog.txt"
-		f, _ = os.Create(logfileName)
+		f, _ = os.Create(k.commitLogName)
 		k.Unlock()
+
+		logger.Notice("Memtable dumped to disk")
+		logger.Info("Commit log cleared")
 	}
-	return nil
 }
 
-func (k *KVStore) RepairDB() {
+func (k *KVStore) repairDB() {
 	files, _ := ioutil.ReadDir("./")
-	matchpattern := "(dump|commitlog).txt"
+	matchpattern := ".*(dump|commit).log"
+
+	logger.Notice("Trying to repair key value storage...")
+
 	for _, file := range files {
 		if ok, _ := regexp.Match(matchpattern, []byte(file.Name())); ok {
 			fLog, err := os.Open(file.Name())
@@ -139,7 +165,7 @@ func (k *KVStore) RepairDB() {
 					break
 				}
 
-				if cur, ok := k.db[key]; ok {
+				if cur, ok := k.memtable[key]; ok {
 					if cur.Timestamp < timestamp {
 						cur.Timestamp = timestamp
 						cur.Exist = exist
@@ -147,9 +173,8 @@ func (k *KVStore) RepairDB() {
 					}
 				} else {
 					tmpKVEntry := &KVEntry{Value: value, Timestamp: timestamp, Exist: exist}
-					k.db[key] = tmpKVEntry
+					k.memtable[key] = tmpKVEntry
 				}
-
 			}
 		}
 	}
@@ -192,24 +217,24 @@ func (k *KVStore) getNextKeyValueFromFile(f *bufio.Reader) (string, string, int6
 
 func (k *KVStore) writeKeyValueToFile(f *os.File, key string, value *KVEntry) error {
 	keyString := strconv.Itoa(len(key)) + " " + key
-	if _, ok := f.WriteString(keyString + " "); ok != nil {
-		fmt.Println("Wrinting Log Error")
+	if _, err := f.WriteString(keyString + " "); err != nil {
+		logger.Error(err.Error())
 	}
-	valueString := strconv.Itoa(len(value.Value)) + " " + value.Value
-	if _, ok := f.WriteString(valueString + " "); ok != nil {
-		fmt.Println("Wrinting Log Error")
-	}
-	timeStampString := strconv.FormatInt(value.Timestamp, 10)
-	if _, ok := f.WriteString(timeStampString + " "); ok != nil {
-		fmt.Println("Wrinting Log Error")
-	}
-	existString := strconv.Itoa(value.Exist)
-	if _, ok := f.WriteString(existString + "\n"); ok != nil {
-		fmt.Println("Wrinting Log Error")
-	}
-	return nil
-}
 
-func (k *KVStore) Count() int {
-	return len(k.db)
+	valueString := strconv.Itoa(len(value.Value)) + " " + value.Value
+	if _, err := f.WriteString(valueString + " "); err != nil {
+		logger.Error(err.Error())
+	}
+
+	timeStampString := strconv.FormatInt(value.Timestamp, 10)
+	if _, err := f.WriteString(timeStampString + " "); err != nil {
+		logger.Error(err.Error())
+	}
+
+	existString := strconv.Itoa(value.Exist)
+	if _, err := f.WriteString(existString + "\n"); err != nil {
+		logger.Error(err.Error())
+	}
+
+	return nil
 }
