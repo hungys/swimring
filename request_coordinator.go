@@ -322,6 +322,7 @@ func (rc *RequestCoordinator) sendRPCRequest(server string, op string, req inter
 
 	errCh := make(chan error, 1)
 	go func() {
+		logger.Infof("Sending RPC %s request to %s", op, server)
 		errCh <- client.Call(op, req, resp)
 	}()
 
@@ -333,6 +334,7 @@ func (rc *RequestCoordinator) sendRPCRequest(server string, op string, req inter
 	}
 
 	if err != nil {
+		logger.Errorf("RPC request to %s error: %s", server, err.Error())
 		return nil, err
 	}
 
