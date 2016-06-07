@@ -5,6 +5,7 @@ import (
 	"math"
 	"net/rpc"
 	"sync"
+	"time"
 
 	"github.com/hungys/swimring/membership"
 	"github.com/hungys/swimring/storage"
@@ -319,7 +320,18 @@ func (rc *RequestCoordinator) sendRPCRequest(server string, op string, req inter
 		resp = &storage.StatResponse{}
 	}
 
-	err = client.Call(op, req, resp)
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- client.Call(op, req, resp)
+	}()
+
+	select {
+	case err = <-errCh:
+	case <-time.After(time.Duration(rc.sr.config.PingTimeout) * time.Millisecond):
+		logger.Warningf("RPC request to %s timeout", server)
+		err = errors.New("request timeout")
+	}
+
 	if err != nil {
 		return nil, err
 	}
