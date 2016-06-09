@@ -254,10 +254,10 @@ func (rc *RequestCoordinator) Stat(req *StateRequest, resp *StateResponse) error
 				KeyCount: 0,
 			}
 
-			if member.Status == membership.Faulty {
-				resCh <- stat
-				return
-			}
+			// if member.Status == membership.Faulty {
+			// 	resCh <- stat
+			// 	return
+			// }
 
 			res, err := rc.sendRPCRequest(member.Address, StatOp, internalReq)
 			if err == nil {
@@ -309,9 +309,11 @@ func (rc *RequestCoordinator) sendRPCRequests(replicas []string, op string, req 
 }
 
 func (rc *RequestCoordinator) sendRPCRequest(server string, op string, req interface{}) (interface{}, error) {
+	logger.Infof("Dialing to RPC server: %s", server)
+
 	client, err := rpc.Dial("tcp", server)
 	if err != nil {
-		logger.Errorf("Fail to dail remote RPC server: %s", server)
+		logger.Errorf("Cannot connect to RPC server: %s", server)
 		return nil, err
 	}
 
@@ -329,19 +331,19 @@ func (rc *RequestCoordinator) sendRPCRequest(server string, op string, req inter
 
 	errCh := make(chan error, 1)
 	go func() {
-		logger.Infof("Sending RPC %s request to %s", op, server)
+		logger.Infof("Sending %s request to %s", op, server)
 		errCh <- client.Call(op, req, resp)
 	}()
 
 	select {
 	case err = <-errCh:
 		if err != nil {
-			logger.Errorf("RPC %s request to %s: %s", op, server, err.Error())
+			logger.Errorf("%s response from %s: %s", op, server, err.Error())
 		} else {
-			logger.Infof("RPC %s request to %s: ok", op, server)
+			logger.Infof("%s response from %s: ok", op, server)
 		}
 	case <-time.After(1500 * time.Millisecond):
-		logger.Warningf("RPC %s request to %s: timeout", op, server)
+		logger.Warningf("%s request to %s: timeout", op, server)
 		err = errors.New("request timeout")
 	}
 

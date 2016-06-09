@@ -138,9 +138,13 @@ func (m *memberlist) MemberClient(address string) (*rpc.Client, error) {
 		return client, nil
 	}
 
+	logger.Debugf("Dialing to RPC server: %s", address)
 	client, err := rpc.Dial("tcp", address)
 	if err == nil {
+		logger.Debugf("RPC connection established: %s", address)
 		m.members.rpcClients[address] = client
+	} else {
+		logger.Debugf("Cannot connect to RPC server: %s", address)
 	}
 
 	return client, err
