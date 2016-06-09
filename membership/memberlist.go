@@ -131,9 +131,9 @@ func (m *memberlist) Member(address string) (*Member, bool) {
 // and it will dial to RPC server if client is not in rpcClients map.
 func (m *memberlist) MemberClient(address string) (*rpc.Client, error) {
 	m.members.Lock()
-	defer m.members.Unlock()
-
 	client, ok := m.members.rpcClients[address]
+	m.members.Unlock()
+
 	if ok {
 		return client, nil
 	}
@@ -142,7 +142,9 @@ func (m *memberlist) MemberClient(address string) (*rpc.Client, error) {
 	client, err := rpc.Dial("tcp", address)
 	if err == nil {
 		logger.Debugf("RPC connection established: %s", address)
+		m.members.Lock()
 		m.members.rpcClients[address] = client
+		m.members.Unlock()
 	} else {
 		logger.Debugf("Cannot connect to RPC server: %s", address)
 	}

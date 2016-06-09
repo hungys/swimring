@@ -118,6 +118,12 @@ func (n *Node) Members() []Member {
 	return n.memberlist.Members()
 }
 
+// MemberClient returns the RPC client of the member at a specific address,
+// and it will dial to RPC server if client is not in rpcClients map.
+func (n *Node) MemberClient(address string) (*rpc.Client, error) {
+	return n.memberlist.MemberClient(address)
+}
+
 // Start starts the SWIM protocol and all sub-protocols.
 func (n *Node) Start() {
 	n.gossip.Start()

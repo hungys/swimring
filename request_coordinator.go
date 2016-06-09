@@ -3,7 +3,6 @@ package main
 import (
 	"errors"
 	"math"
-	"net/rpc"
 	"sync"
 	"time"
 
@@ -254,10 +253,10 @@ func (rc *RequestCoordinator) Stat(req *StateRequest, resp *StateResponse) error
 				KeyCount: 0,
 			}
 
-			// if member.Status == membership.Faulty {
-			// 	resCh <- stat
-			// 	return
-			// }
+			if member.Status == membership.Faulty {
+				resCh <- stat
+				return
+			}
 
 			res, err := rc.sendRPCRequest(member.Address, StatOp, internalReq)
 			if err == nil {
@@ -309,14 +308,6 @@ func (rc *RequestCoordinator) sendRPCRequests(replicas []string, op string, req 
 }
 
 func (rc *RequestCoordinator) sendRPCRequest(server string, op string, req interface{}) (interface{}, error) {
-	logger.Infof("Dialing to RPC server: %s", server)
-
-	client, err := rpc.Dial("tcp", server)
-	if err != nil {
-		logger.Errorf("Cannot connect to RPC server: %s", server)
-		return nil, err
-	}
-
 	var resp interface{}
 	switch op {
 	case GetOp:
@@ -331,10 +322,19 @@ func (rc *RequestCoordinator) sendRPCRequest(server string, op string, req inter
 
 	errCh := make(chan error, 1)
 	go func() {
-		logger.Infof("Sending %s request to %s", op, server)
-		errCh <- client.Call(op, req, resp)
+		client, err := rc.sr.node.MemberClient(server)
+		if err != nil {
+			errCh <- err
+			return
+		}
+
+		if client != nil {
+			logger.Infof("Sending %s request to %s", op, server)
+			errCh <- client.Call(op, req, resp)
+		}
 	}()
 
+	var err error
 	select {
 	case err = <-errCh:
 		if err != nil {
