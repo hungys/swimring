@@ -112,7 +112,22 @@ ok
 
 ## Docker container
 
-We also prepared a `Dockerfile` for deploying SwimRing, but we are still investigating some RPC blocking issues during node failures when nodes are running in container environment.
+We also provide a Dockerfile for deploying SwimRing. To build the Docker image,
+
+```bash
+$ docker build -t swimring .
+```
+
+Then you can start to run SwimRing in Docker containers. To configure the **seeds** (nodes that can help join the cluser), simply specify their addresses and ports in environment variable `SEEDS`.
+
+For example, the following commands will launch a cluster of 4 nodes locally,
+
+```bash
+$ docker run -d -p 5001:7000 --name s1 swimring
+$ docker run -d -p 5002:7000 -e 'SEEDS=["172.17.0.2:7001"]' --name s2 swimring
+$ docker run -d -p 5003:7000 -e 'SEEDS=["172.17.0.2:7001"]' --name s3 swimring
+$ docker run -d -p 5004:7000 -e 'SEEDS=["172.17.0.2:7001"]' --name s4 swimring
+```
 
 # Reference
 
