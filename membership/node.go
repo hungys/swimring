@@ -124,6 +124,16 @@ func (n *Node) MemberClient(address string) (*rpc.Client, error) {
 	return n.memberlist.MemberClient(address)
 }
 
+// MemberReachable returns whether or not the member is reachable
+func (n *Node) MemberReachable(address string) bool {
+	member, ok := n.memberlist.Member(address)
+	if !ok {
+		return false
+	}
+
+	return member.isReachable()
+}
+
 // Start starts the SWIM protocol and all sub-protocols.
 func (n *Node) Start() {
 	n.gossip.Start()

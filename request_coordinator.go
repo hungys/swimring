@@ -253,11 +253,6 @@ func (rc *RequestCoordinator) Stat(req *StateRequest, resp *StateResponse) error
 				KeyCount: 0,
 			}
 
-			if member.Status == membership.Faulty {
-				resCh <- stat
-				return
-			}
-
 			res, err := rc.sendRPCRequest(member.Address, StatOp, internalReq)
 			if err == nil {
 				stat.KeyCount = res.(*storage.StatResponse).Count
@@ -308,6 +303,10 @@ func (rc *RequestCoordinator) sendRPCRequests(replicas []string, op string, req 
 }
 
 func (rc *RequestCoordinator) sendRPCRequest(server string, op string, req interface{}) (interface{}, error) {
+	if !rc.sr.node.MemberReachable(server) {
+		return nil, errors.New("not reachable")
+	}
+
 	var resp interface{}
 	switch op {
 	case GetOp:
