@@ -4,4 +4,4 @@ if [ -z "$SEEDS" ]; then
 fi
 sed -i -e "s/BootstrapNodes: \[\":7001\"\]/BootstrapNodes: $SEEDS/" /go/bin/config.yml
 
-/go/bin/swimring
+/go/bin/app
