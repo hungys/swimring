@@ -41,6 +41,7 @@ Then switch to your GOPATH and build the project,
 
 ```bash
 $ cd $GOPATH/src/github.com/hungys/swimring
+$ glide install
 $ go build
 ```
 
