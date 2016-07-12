@@ -1,0 +1,14 @@
+hash: dd6123f1d7c4fb49f1e3b1d5ef7af68ee2001e268746640b85d965332efdf668
+updated: 2016-07-12T15:00:17.353811197+08:00
+imports:
+- name: github.com/dgryski/go-farm
+  version: f94e93e5a2b3a579af0f5367c84b54cb9aa00074
+- name: github.com/mattn/go-runewidth
+  version: d6bea18f789704b5f83375793155289da36a3c7f
+- name: github.com/olekukonko/tablewriter
+  version: daf2955e742cf123959884fdff4685aa79b63135
+- name: github.com/op/go-logging
+  version: b2cb9fa56473e98db8caba80237377e83fe44db5
+- name: gopkg.in/yaml.v2
+  version: a83829b6f1293c91addabc89d0571c246397bbf4
+testImports: []
